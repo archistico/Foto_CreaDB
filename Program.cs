@@ -50,11 +50,15 @@ namespace Foto_CreaDB2
 
         static SQLiteConnection CreateConnection()
         {
+            string nomedb = "foto.db";
+
+            if (File.Exists(nomedb))
+            {
+                File.Delete(nomedb);
+            }
 
             SQLiteConnection sqlite_conn;
-            // Create a new database connection:
-            sqlite_conn = new SQLiteConnection("Data Source=foto.db;Version=3;New=True;Compress=True;");
-            // Open the connection:
+            sqlite_conn = new SQLiteConnection($"Data Source={nomedb};Version=3;New=True;Compress=True;");
             try
             {
                 sqlite_conn.Open();
