@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using MetadataExtractor;
 using System.Data.SQLite;
+using System.Security.Cryptography;
 
 #pragma warning disable 8321
 
@@ -84,6 +85,7 @@ namespace Foto_CreaDB2
                 + ", ISO TEXT"
                 + ", COMPENSAZIONE TEXT"
                 + ", ZOOM TEXT"
+                + ", HASH TEXT"
                 + ")"
                 ;
             sqlite_cmd = conn.CreateCommand();
@@ -110,10 +112,11 @@ namespace Foto_CreaDB2
                 + ", ISO"
                 + ", COMPENSAZIONE"
                 + ", ZOOM"
+                + ", HASH"
                 + ") " 
                 + " VALUES (@nomefile, @cartella, @data, @mime, @dimensione"
                 + ", @larghezza, @altezza, @marca, @modello, @esposizione"
-                + ", @apertura, @iso, @compensazione, @zoom);";
+                + ", @apertura, @iso, @compensazione, @zoom, @hash);";
 
             sqlite_cmd.Parameters.AddWithValue("nomefile", foto.nomefile);
             sqlite_cmd.Parameters.AddWithValue("cartella", foto.cartella);
@@ -129,6 +132,7 @@ namespace Foto_CreaDB2
             sqlite_cmd.Parameters.AddWithValue("iso", foto.iso);
             sqlite_cmd.Parameters.AddWithValue("compensazione", foto.compensazione);
             sqlite_cmd.Parameters.AddWithValue("zoom", foto.zoom);
+            sqlite_cmd.Parameters.AddWithValue("hash", foto.hash);
     
             try {
                 sqlite_cmd.ExecuteNonQuery();
@@ -268,8 +272,24 @@ namespace Foto_CreaDB2
             f.iso = TagISOSpeedRatings?.Description;
             f.compensazione = TagExposureBiasValue?.Description;
             f.zoom = TagFocalLength?.Description;
+            f.hash = BytesToString(GetHashSha256(imagePath));
 
             Program.InsertData(_sqlite_conn, f);
+        }
+
+        private static byte[] GetHashSha256(string filename)
+        {
+            SHA256 Sha256 = SHA256.Create();
+            using (FileStream stream = File.OpenRead(filename))
+            {
+                return Sha256.ComputeHash(stream);
+            }
+        }
+        public static string BytesToString(byte[] bytes)
+        {
+            string result = "";
+            foreach (byte b in bytes) result += b.ToString("x2");
+            return result;
         }
 
         public static Tag GetTag(IEnumerable<MetadataExtractor.Directory> directories, string _directory, string _tag)
@@ -321,5 +341,6 @@ namespace Foto_CreaDB2
         public string iso { get; set; } = ""; 
         public string compensazione { get; set; } = ""; 
         public string zoom { get; set; } = ""; 
+        public string hash { get; set; } = ""; 
     }
 }
