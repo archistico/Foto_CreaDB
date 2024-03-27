@@ -23,23 +23,18 @@ using System.Data.SQLite;
 
 namespace Foto_CreaDB2
 {
-    class Program
+    public class Program
     {
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
             string[] paths = { @"/home/emilie/Immagini" };
-            //RecursiveFileProcessor.Cerca(paths);
 
             SQLiteConnection sqlite_conn;
             sqlite_conn = CreateConnection();
             CreateTable(sqlite_conn);
 
-            Foto f = new Foto();
-            f.nomefile = "nomefile.jpg";
-            f.data = DateTime.Now.ToString();
-            f.cartella = "cartella";
+            RecursiveFileProcessor.Cerca(paths, sqlite_conn);
 
-            InsertData(sqlite_conn, f);
             //ReadData(sqlite_conn);
 
             sqlite_conn.Close();
@@ -48,7 +43,7 @@ namespace Foto_CreaDB2
             Console.ReadKey();
         }
 
-        static SQLiteConnection CreateConnection()
+        public static SQLiteConnection CreateConnection()
         {
             string nomedb = "foto.db";
 
@@ -70,7 +65,7 @@ namespace Foto_CreaDB2
             return sqlite_conn;
         }
 
-        static void CreateTable(SQLiteConnection conn)
+        public static void CreateTable(SQLiteConnection conn)
         {
             SQLiteCommand sqlite_cmd;
             string Createsql = "CREATE TABLE FOTO ("
@@ -96,7 +91,7 @@ namespace Foto_CreaDB2
             sqlite_cmd.ExecuteNonQuery();
         }
 
-        static void InsertData(SQLiteConnection conn, Foto foto)
+        public static void InsertData(SQLiteConnection conn, Foto foto)
         {
             SQLiteCommand sqlite_cmd;
             sqlite_cmd = conn.CreateCommand();
@@ -144,7 +139,7 @@ namespace Foto_CreaDB2
             
         }
 
-        static void ReadData(SQLiteConnection conn)
+        public static void ReadData(SQLiteConnection conn)
         {
             SQLiteDataReader sqlite_datareader;
             SQLiteCommand sqlite_cmd;
@@ -162,8 +157,12 @@ namespace Foto_CreaDB2
 
     public class RecursiveFileProcessor
     {
-        public static void Cerca(string[] paths)
+        public static SQLiteConnection _sqlite_conn;
+
+        public static void Cerca(string[] paths, SQLiteConnection sqlite_conn)
         {
+            _sqlite_conn = sqlite_conn;
+
             foreach (string path in paths)
             {
                 if (File.Exists(path))
@@ -253,6 +252,24 @@ namespace Foto_CreaDB2
             Console.WriteLine($"{TagDateTimeOriginal?.Name} {TagDateTimeOriginal?.Description}");
             Console.WriteLine($"{TagExposureBiasValue?.Name} {TagExposureBiasValue?.Description}");
             Console.WriteLine($"{TagFocalLength?.Name} {TagFocalLength?.Description}");
+
+            Foto f = new Foto();
+            f.nomefile = TagFileName?.Description;
+            f.data = TagDateTimeOriginal?.Description;
+            f.cartella = imagePath;
+            f.mime = TagFileType?.Description;
+            f.dimensione = imageSize;
+            f.larghezza = imageWidth;
+            f.altezza = imageHeight;
+            f.marca = TagMake?.Description;
+            f.modello = TagModel?.Description;
+            f.esposizione = TagExposureTime?.Description;
+            f.apertura = TagFNumber?.Description;
+            f.iso = TagISOSpeedRatings?.Description;
+            f.compensazione = TagExposureBiasValue?.Description;
+            f.zoom = TagFocalLength?.Description;
+
+            Program.InsertData(_sqlite_conn, f);
         }
 
         public static Tag GetTag(IEnumerable<MetadataExtractor.Directory> directories, string _directory, string _tag)
