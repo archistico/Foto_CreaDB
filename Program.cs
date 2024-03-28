@@ -1,10 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using MetadataExtractor;
 using System.Data.SQLite;
 using System.Security.Cryptography;
@@ -28,7 +26,7 @@ namespace Foto_CreaDB2
     {
         public static void Main(string[] args)
         {
-            string[] paths = { @"/home/emilie/Immagini" };
+            string[] paths = { @"C:\Users\ROLLANDINE\Pictures" };
 
             SQLiteConnection sqlite_conn;
             sqlite_conn = CreateConnection();
@@ -162,6 +160,7 @@ namespace Foto_CreaDB2
     public class RecursiveFileProcessor
     {
         public static SQLiteConnection _sqlite_conn;
+        public static List<string> estensioniPermesse = new List<string> { "jpg", "jpeg", "dcr", "dng", "crw", "gif", "png", "ico", "raw", "arw" };
 
         public static void Cerca(string[] paths, SQLiteConnection sqlite_conn)
         {
@@ -171,7 +170,11 @@ namespace Foto_CreaDB2
             {
                 if (File.Exists(path))
                 {
-                    ProcessFile(path);
+                    string estensione = Path.GetExtension(path).Replace(".", "").ToLowerInvariant();
+                    if (estensioniPermesse.Contains(estensione))
+                    {
+                        ProcessFile(path);
+                    }
                 }
                 else if (System.IO.Directory.Exists(path))
                 {
@@ -189,7 +192,13 @@ namespace Foto_CreaDB2
         {
             string[] fileEntries = System.IO.Directory.GetFiles(targetDirectory);
             foreach (string fileName in fileEntries)
-                ProcessFile(fileName);
+            {
+                string estensione = Path.GetExtension(fileName).Replace(".", "").ToLowerInvariant();
+                if (estensioniPermesse.Contains(estensione))
+                {
+                    ProcessFile(fileName);
+                }
+            }
 
             string[] subdirectoryEntries = System.IO.Directory.GetDirectories(targetDirectory);
             foreach (string subdirectory in subdirectoryEntries)
@@ -235,28 +244,7 @@ namespace Foto_CreaDB2
             int imageWidth = ConvertiString2Int(TagImageWidth?.Description, "", "pixels", 0);
             int imageHeight = ConvertiString2Int(TagImageHeight?.Description, "", "pixels", 0);
             int imageSize = ConvertiString2Int(TagFileSize?.Description, "", "bytes", 0);
-
-            Console.WriteLine($"-----------------------------------------------");
-            Console.WriteLine($"{TagFileName?.Name} {TagFileName?.Description}");
-            Console.WriteLine($"-----------------------------------------------");
-            Console.WriteLine($"{imagePath}");
-            Console.WriteLine($"{TagFileType?.Name} {TagFileType?.Description}");
-            Console.WriteLine($"{TagFileSize?.Name} {TagFileSize?.Description}");
-
-            Console.WriteLine($"W:{imageWidth} H:{imageHeight} S:{imageSize}");
-            Console.WriteLine($"{TagImageWidth?.Name} {TagImageWidth?.Description}");
-            Console.WriteLine($"{TagImageHeight?.Name} {TagImageHeight?.Description}");
-
-            Console.WriteLine($"{TagMake?.Name} {TagMake?.Description}");
-            Console.WriteLine($"{TagModel?.Name} {TagModel?.Description}");
-
-            Console.WriteLine($"{TagExposureTime?.Name} {TagExposureTime?.Description}");
-            Console.WriteLine($"{TagFNumber?.Name} {TagFNumber?.Description}");
-            Console.WriteLine($"{TagISOSpeedRatings?.Name} {TagISOSpeedRatings?.Description}");
-            Console.WriteLine($"{TagDateTimeOriginal?.Name} {TagDateTimeOriginal?.Description}");
-            Console.WriteLine($"{TagExposureBiasValue?.Name} {TagExposureBiasValue?.Description}");
-            Console.WriteLine($"{TagFocalLength?.Name} {TagFocalLength?.Description}");
-
+                        
             Foto f = new Foto();
             f.nomefile = TagFileName?.Description;
             f.data = TagDateTimeOriginal?.Description;
@@ -275,6 +263,8 @@ namespace Foto_CreaDB2
             f.hash = BytesToString(GetHashSha256(imagePath));
 
             Program.InsertData(_sqlite_conn, f);
+
+            Console.WriteLine(f.ToString());
         }
 
         private static byte[] GetHashSha256(string filename)
@@ -341,6 +331,11 @@ namespace Foto_CreaDB2
         public string iso { get; set; } = ""; 
         public string compensazione { get; set; } = ""; 
         public string zoom { get; set; } = ""; 
-        public string hash { get; set; } = ""; 
+        public string hash { get; set; } = "";
+
+        public override string ToString()
+        {
+            return $"File: {cartella} | {dimensione.ToString()} bytes";
+        }
     }
 }
