@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using MetadataExtractor;
 using System.Data.SQLite;
 using System.Security.Cryptography;
+using System.Globalization;
 
 #pragma warning disable 8321
 
@@ -26,15 +27,14 @@ namespace Foto_CreaDB2
     {
         public static void Main(string[] args)
         {
-            string[] paths = { @"C:\Users\ROLLANDINE\Pictures" };
+            string[] paths = { @"D:\Foto" };
+            string nomedb = "foto.db";
 
             SQLiteConnection sqlite_conn;
-            sqlite_conn = CreateConnection();
+            sqlite_conn = CreateConnection(nomedb, true);
             CreateTable(sqlite_conn);
 
             RecursiveFileProcessor.Cerca(paths, sqlite_conn);
-
-            //ReadData(sqlite_conn);
 
             sqlite_conn.Close();
 
@@ -42,11 +42,9 @@ namespace Foto_CreaDB2
             Console.ReadKey();
         }
 
-        public static SQLiteConnection CreateConnection()
+        public static SQLiteConnection CreateConnection(string nomedb, bool cancella)
         {
-            string nomedb = "foto.db";
-
-            if (File.Exists(nomedb))
+            if (File.Exists(nomedb) && cancella)
             {
                 File.Delete(nomedb);
             }
@@ -140,27 +138,17 @@ namespace Foto_CreaDB2
             }    
             
         }
-
-        public static void ReadData(SQLiteConnection conn)
-        {
-            SQLiteDataReader sqlite_datareader;
-            SQLiteCommand sqlite_cmd;
-            sqlite_cmd = conn.CreateCommand();
-            sqlite_cmd.CommandText = "SELECT * FROM SampleTable";
-
-            sqlite_datareader = sqlite_cmd.ExecuteReader();
-            while (sqlite_datareader.Read())
-            {
-                string myreader = sqlite_datareader.GetString(0);
-                Console.WriteLine(myreader);
-            }
-        }
     }
 
     public class RecursiveFileProcessor
     {
         public static SQLiteConnection _sqlite_conn;
-        public static List<string> estensioniPermesse = new List<string> { "jpg", "jpeg", "dcr", "dng", "crw", "gif", "png", "ico", "raw", "arw" };
+        public static List<string> estensioniPermesse = new List<string> { 
+            "jpg", "jpeg", "dcr", "dng", "crw",
+            "gif", "png", "ico", "raw", "arw", "cr2",
+            "avi", "wmv", "wav", "mp4", "mp3", "mov",
+            "bmp", "psd", "3gp"
+        };
 
         public static void Cerca(string[] paths, SQLiteConnection sqlite_conn)
         {
@@ -225,46 +213,90 @@ namespace Foto_CreaDB2
             Exif SubIFD - Exposure Bias Value = 0 EV
             Exif SubIFD - Focal Length = 36 mm            
             */
+            try
+            {
+                IEnumerable<MetadataExtractor.Directory> directories = ImageMetadataReader.ReadMetadata(imagePath);
+                var TagImageWidth = GetTag(directories, "JPEG", "Image Width");
+                var TagImageHeight = GetTag(directories, "JPEG", "Image Height");
+                var TagFileType = GetTag(directories, "File Type", "Detected MIME Type");
+                var TagFileName = GetTag(directories, "File", "File Name");
+                var TagFileSize = GetTag(directories, "File", "File Size");
+                var TagMake = GetTag(directories, "Exif IFD0", "Make");
+                var TagModel = GetTag(directories, "Exif IFD0", "Model");
+                var TagExposureTime = GetTag(directories, "Exif SubIFD", "Exposure Time");
+                var TagFNumber = GetTag(directories, "Exif SubIFD", "F-Number");
+                var TagISOSpeedRatings = GetTag(directories, "Exif SubIFD", "ISO Speed Ratings");
+                var TagDateTimeOriginal = GetTag(directories, "Exif SubIFD", "Date/Time Original");
+                var TagExposureBiasValue = GetTag(directories, "Exif SubIFD", "Exposure Bias Value");
+                var TagFocalLength = GetTag(directories, "Exif SubIFD", "Focal Length");
 
-            IEnumerable<MetadataExtractor.Directory> directories = ImageMetadataReader.ReadMetadata(imagePath);
-            var TagImageWidth = GetTag(directories, "JPEG", "Image Width");
-            var TagImageHeight = GetTag(directories, "JPEG", "Image Height");
-            var TagFileType = GetTag(directories, "File Type", "Detected MIME Type");
-            var TagFileName = GetTag(directories, "File", "File Name");
-            var TagFileSize = GetTag(directories, "File", "File Size");
-            var TagMake = GetTag(directories, "Exif IFD0", "Make");
-            var TagModel = GetTag(directories, "Exif IFD0", "Model");
-            var TagExposureTime = GetTag(directories, "Exif SubIFD", "Exposure Time");
-            var TagFNumber = GetTag(directories, "Exif SubIFD", "F-Number");
-            var TagISOSpeedRatings = GetTag(directories, "Exif SubIFD", "ISO Speed Ratings");
-            var TagDateTimeOriginal = GetTag(directories, "Exif SubIFD", "Date/Time Original");
-            var TagExposureBiasValue = GetTag(directories, "Exif SubIFD", "Exposure Bias Value");
-            var TagFocalLength = GetTag(directories, "Exif SubIFD", "Focal Length");
+                int imageWidth = ConvertiString2Int(TagImageWidth?.Description, "", "pixels", 0);
+                int imageHeight = ConvertiString2Int(TagImageHeight?.Description, "", "pixels", 0);
+                int imageSize = ConvertiString2Int(TagFileSize?.Description, "", "bytes", 0);
 
-            int imageWidth = ConvertiString2Int(TagImageWidth?.Description, "", "pixels", 0);
-            int imageHeight = ConvertiString2Int(TagImageHeight?.Description, "", "pixels", 0);
-            int imageSize = ConvertiString2Int(TagFileSize?.Description, "", "bytes", 0);
-                        
-            Foto f = new Foto();
-            f.nomefile = TagFileName?.Description;
-            f.data = TagDateTimeOriginal?.Description;
-            f.cartella = imagePath;
-            f.mime = TagFileType?.Description;
-            f.dimensione = imageSize;
-            f.larghezza = imageWidth;
-            f.altezza = imageHeight;
-            f.marca = TagMake?.Description;
-            f.modello = TagModel?.Description;
-            f.esposizione = TagExposureTime?.Description;
-            f.apertura = TagFNumber?.Description;
-            f.iso = TagISOSpeedRatings?.Description;
-            f.compensazione = TagExposureBiasValue?.Description;
-            f.zoom = TagFocalLength?.Description;
-            f.hash = BytesToString(GetHashSha256(imagePath));
+                Foto f = new Foto();
 
-            Program.InsertData(_sqlite_conn, f);
+                string data = TagDateTimeOriginal?.Description;
 
-            Console.WriteLine(f.ToString());
+                if (string.IsNullOrWhiteSpace(data) || data == "0000:00:00 00:00:00")
+                {
+                    FileInfo fInfo = new FileInfo(imagePath);
+                    var dataModifica = fInfo.LastWriteTime;
+                    data = dataModifica.ToString("yyyy:MM:dd HH:mm:ss");
+                }
+
+                CultureInfo itIT = new CultureInfo("it-IT");
+                DateTime dateValue;
+                if (DateTime.TryParseExact(data, "yyyy:MM:dd HH:mm:ss", itIT, DateTimeStyles.None, out dateValue))
+                    data = dateValue.ToString("yyyy/MM/dd HH:mm:ss");
+                else
+                    data = "2000/01/01 10:00:00";
+
+                f.nomefile = TagFileName?.Description;
+                f.data = data;
+                f.cartella = imagePath;
+                f.mime = Path.GetExtension(imagePath).Replace(".", "").ToLowerInvariant();
+                f.dimensione = imageSize;
+                f.larghezza = imageWidth;
+                f.altezza = imageHeight;
+                f.marca = TagMake?.Description;
+                f.modello = TagModel?.Description;
+                f.esposizione = TagExposureTime?.Description;
+                f.apertura = TagFNumber?.Description;
+                f.iso = TagISOSpeedRatings?.Description;
+                f.compensazione = TagExposureBiasValue?.Description;
+                f.zoom = TagFocalLength?.Description;
+                f.hash = BytesToString(GetHashSha256(imagePath));
+
+                Program.InsertData(_sqlite_conn, f);
+
+                Console.WriteLine(f.ToString());
+            }
+            catch (Exception)
+            {
+                Foto f = new Foto();
+                FileInfo fInfo = new FileInfo(imagePath);
+                
+                f.nomefile = Path.GetFileName(imagePath);
+                f.data = fInfo.LastWriteTime.ToString("yyyy/MM/dd HH:mm:ss");
+                f.cartella = imagePath;
+                f.mime = Path.GetExtension(imagePath).Replace(".", "").ToLowerInvariant();
+                f.dimensione = Convert.ToInt32(fInfo.Length);
+                f.larghezza = 0;
+                f.altezza = 0;
+                f.marca = "";
+                f.modello = "";
+                f.esposizione = "";
+                f.apertura = "";
+                f.iso = "";
+                f.compensazione = "";
+                f.zoom = "";
+                f.hash = BytesToString(GetHashSha256(imagePath));
+
+                Program.InsertData(_sqlite_conn, f);
+                Console.WriteLine(f.ToString());
+            }
+            
         }
 
         private static byte[] GetHashSha256(string filename)
