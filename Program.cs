@@ -27,7 +27,7 @@ namespace Foto_CreaDB2
     {
         public static void Main(string[] args)
         {
-            string[] paths = { @"D:\Foto" };
+            string[] paths = { @"D:\Foto\2004\2004 Gita Thoronet" }; //D:\Foto
             string nomedb = "foto.db";
 
             SQLiteConnection sqlite_conn;
@@ -70,7 +70,7 @@ namespace Foto_CreaDB2
                 + ", NOMEFILE TEXT NOT NULL"
                 + ", CARTELLA TEXT NOT NULL"
                 + ", DATA TEXT"
-                + ", MIME TEXT"
+                + ", ESTENSIONE TEXT"
                 + ", DIMENSIONE INTEGER"
                 + ", LARGHEZZA INTEGER"
                 + ", ALTEZZA INTEGER"
@@ -82,6 +82,7 @@ namespace Foto_CreaDB2
                 + ", COMPENSAZIONE TEXT"
                 + ", ZOOM TEXT"
                 + ", HASH TEXT"
+                + ", NUOVOFILE TEXT"
                 + ")"
                 ;
             sqlite_cmd = conn.CreateCommand();
@@ -97,7 +98,7 @@ namespace Foto_CreaDB2
                 + "  NOMEFILE"
                 + ", CARTELLA"
                 + ", DATA"
-                + ", MIME"
+                + ", ESTENSIONE"
                 + ", DIMENSIONE"
                 + ", LARGHEZZA"
                 + ", ALTEZZA"
@@ -109,15 +110,16 @@ namespace Foto_CreaDB2
                 + ", COMPENSAZIONE"
                 + ", ZOOM"
                 + ", HASH"
+                + ", NUOVOFILE"
                 + ") " 
-                + " VALUES (@nomefile, @cartella, @data, @mime, @dimensione"
+                + " VALUES (@nomefile, @cartella, @data, @estensione, @dimensione"
                 + ", @larghezza, @altezza, @marca, @modello, @esposizione"
-                + ", @apertura, @iso, @compensazione, @zoom, @hash);";
+                + ", @apertura, @iso, @compensazione, @zoom, @hash, @nuovofile);";
 
             sqlite_cmd.Parameters.AddWithValue("nomefile", foto.nomefile);
             sqlite_cmd.Parameters.AddWithValue("cartella", foto.cartella);
             sqlite_cmd.Parameters.AddWithValue("data", foto.data);
-            sqlite_cmd.Parameters.AddWithValue("mime", foto.mime);
+            sqlite_cmd.Parameters.AddWithValue("estensione", foto.estensione);
             sqlite_cmd.Parameters.AddWithValue("dimensione", foto.dimensione);
             sqlite_cmd.Parameters.AddWithValue("larghezza", foto.larghezza);
             sqlite_cmd.Parameters.AddWithValue("altezza", foto.altezza);
@@ -129,6 +131,7 @@ namespace Foto_CreaDB2
             sqlite_cmd.Parameters.AddWithValue("compensazione", foto.compensazione);
             sqlite_cmd.Parameters.AddWithValue("zoom", foto.zoom);
             sqlite_cmd.Parameters.AddWithValue("hash", foto.hash);
+            sqlite_cmd.Parameters.AddWithValue("nuovofile", foto.nuovofile);
     
             try {
                 sqlite_cmd.ExecuteNonQuery();
@@ -248,14 +251,14 @@ namespace Foto_CreaDB2
                 CultureInfo itIT = new CultureInfo("it-IT");
                 DateTime dateValue;
                 if (DateTime.TryParseExact(data, "yyyy:MM:dd HH:mm:ss", itIT, DateTimeStyles.None, out dateValue))
-                    data = dateValue.ToString("yyyy/MM/dd HH:mm:ss");
+                    data = dateValue.ToString("yyyy-MM-dd HH:mm:ss");
                 else
-                    data = "2000/01/01 10:00:00";
+                    data = "0000-01-01 00:00:00";
 
                 f.nomefile = TagFileName?.Description;
                 f.data = data;
                 f.cartella = imagePath;
-                f.mime = Path.GetExtension(imagePath).Replace(".", "").ToLowerInvariant();
+                f.estensione = Path.GetExtension(imagePath).Replace(".", "").ToLowerInvariant();
                 f.dimensione = imageSize;
                 f.larghezza = imageWidth;
                 f.altezza = imageHeight;
@@ -267,6 +270,7 @@ namespace Foto_CreaDB2
                 f.compensazione = TagExposureBiasValue?.Description;
                 f.zoom = TagFocalLength?.Description;
                 f.hash = BytesToString(GetHashSha256(imagePath));
+                f.nuovofile = f.CalcNuovofile();
 
                 Program.InsertData(_sqlite_conn, f);
 
@@ -280,7 +284,7 @@ namespace Foto_CreaDB2
                 f.nomefile = Path.GetFileName(imagePath);
                 f.data = fInfo.LastWriteTime.ToString("yyyy/MM/dd HH:mm:ss");
                 f.cartella = imagePath;
-                f.mime = Path.GetExtension(imagePath).Replace(".", "").ToLowerInvariant();
+                f.estensione = Path.GetExtension(imagePath).Replace(".", "").ToLowerInvariant();
                 f.dimensione = Convert.ToInt32(fInfo.Length);
                 f.larghezza = 0;
                 f.altezza = 0;
@@ -352,7 +356,7 @@ namespace Foto_CreaDB2
         public string nomefile { get; set; } = ""; 
         public string cartella { get; set; } = ""; 
         public string data { get; set; } = ""; 
-        public string mime { get; set; } = ""; 
+        public string estensione { get; set; } = ""; 
         public int dimensione { get; set; } = 0; 
         public int larghezza { get; set; } = 0; 
         public int altezza { get; set; } = 0; 
@@ -364,10 +368,27 @@ namespace Foto_CreaDB2
         public string compensazione { get; set; } = ""; 
         public string zoom { get; set; } = ""; 
         public string hash { get; set; } = "";
+        public string nuovofile { get; set; } = "";
 
         public override string ToString()
         {
             return $"File: {cartella} | {dimensione.ToString()} bytes";
+        }
+
+        public string CalcNuovofile()
+        {
+            string ris = "";
+            string p1 = "";
+
+            CultureInfo itIT = new CultureInfo("it-IT");
+            DateTime dateValue;
+            if (DateTime.TryParseExact(data, "yyyy-MM-dd HH:mm:ss", itIT, DateTimeStyles.None, out dateValue))
+                p1 = dateValue.ToString("yyyy_MM_dd_HH_mm_ss");
+            else
+                p1 = "0000_01_01_00_00_00";
+
+            ris = $"{p1}.{this.estensione}";
+            return ris;
         }
     }
 }
