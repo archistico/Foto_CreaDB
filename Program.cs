@@ -13,13 +13,14 @@ namespace Foto_CreaDB2
         /// <summary>
         /// Avvia l'applicazione console.
         /// Legge i parametri di input, prepara configurazione e dipendenze,
-        /// esegue la scansione dei file, stampa il report finale dei duplicati binari
+        /// esegue la scansione dei file, gestisce i duplicati binari
         /// e, su conferma dell'utente, procede con la cancellazione dei file selezionati.
         /// </summary>
         /// <param name="args">
         /// Argomenti passati da riga di comando.
         /// Il primo rappresenta il percorso da analizzare; il secondo, se presente,
         /// rappresenta il percorso del database SQLite.
+        /// I flag opzionali possono includere <c>--verbose</c>.
         /// </param>
         public static void Main(string[] args)
         {
@@ -28,18 +29,42 @@ namespace Foto_CreaDB2
                 Console.WriteLine("Uso:");
                 Console.WriteLine(@"Foto_CreaDB2.exe ""C:\Percorso\Foto""");
                 Console.WriteLine(@"Foto_CreaDB2.exe ""C:\Percorso\Foto"" ""C:\Percorso\DB\foto.db""");
+                Console.WriteLine(@"Foto_CreaDB2.exe ""C:\Percorso\Foto"" --verbose");
+                Console.WriteLine(@"Foto_CreaDB2.exe ""C:\Percorso\Foto"" ""C:\Percorso\DB\foto.db"" --verbose");
                 Console.WriteLine("");
                 Console.WriteLine("Note:");
                 Console.WriteLine("- Se passi una cartella, la scansione è ricorsiva.");
                 Console.WriteLine("- Se passi un file, viene analizzato solo quel file.");
                 Console.WriteLine("- Il database NON viene cancellato: la scansione è incrementale.");
+                Console.WriteLine("- Con --verbose viene mostrato il dettaglio dei duplicati da tenere/eliminare.");
                 return;
             }
 
             string pathInput = args[0].Trim();
-            string nomeDb = (args.Length > 1 && !string.IsNullOrWhiteSpace(args[1]))
-                ? args[1].Trim()
-                : "foto.db";
+
+            string nomeDb = "foto.db";
+            bool verboseDuplicates = false;
+
+            for (int i = 1; i < args.Length; i++)
+            {
+                string currentArg = (args[i] ?? "").Trim();
+
+                if (string.Equals(currentArg, "--verbose", StringComparison.OrdinalIgnoreCase))
+                {
+                    verboseDuplicates = true;
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(currentArg))
+                {
+                    continue;
+                }
+
+                if (string.Equals(nomeDb, "foto.db", StringComparison.OrdinalIgnoreCase))
+                {
+                    nomeDb = currentArg;
+                }
+            }
 
             AppConfig config = new AppConfig
             {
@@ -47,7 +72,8 @@ namespace Foto_CreaDB2
                 NomeDb = nomeDb,
                 CancellaDbSeEsiste = false,
                 LogDettagliato = false,
-                ProgressEvery = 1000
+                ProgressEvery = 1000,
+                VerboseDuplicates = verboseDuplicates
             };
 
             Logger logger = new Logger(config.LogDettagliato, config.ProgressEvery);
@@ -79,12 +105,21 @@ namespace Foto_CreaDB2
                         scanner.Scan();
 
                         List<DuplicateBinaryDecision> duplicateDecisions = repository.GetBinaryDuplicateDecisions();
+                        int fileCandidatiAllaCancellazione = CountFilesToDelete(duplicateDecisions);
 
-                        DuplicateBinaryReportWriter reportWriter = new DuplicateBinaryReportWriter();
-                        reportWriter.Write(duplicateDecisions);
+                        logger.WriteLine("");
+                        logger.WriteLine("Duplicati trovati                : " + duplicateDecisions.Count);
+                        logger.WriteLine("File candidati alla cancellazione: " + fileCandidatiAllaCancellazione);
 
-                        if (HasFilesToDelete(duplicateDecisions))
+                        if (config.VerboseDuplicates)
                         {
+                            DuplicateBinaryReportWriter reportWriter = new DuplicateBinaryReportWriter();
+                            reportWriter.Write(duplicateDecisions);
+                        }
+
+                        if (fileCandidatiAllaCancellazione > 0)
+                        {
+                            logger.WriteLine("");
                             logger.WriteLine("Procedo alla cancellazione? (S/N)");
 
                             ConsoleKeyInfo keyInfo = Console.ReadKey();
@@ -122,30 +157,33 @@ namespace Foto_CreaDB2
         }
 
         /// <summary>
-        /// Verifica se tra le decisioni ricevute esiste almeno un file da eliminare.
+        /// Conta il numero totale di file candidati alla cancellazione
+        /// presenti nell'elenco delle decisioni.
         /// </summary>
         /// <param name="decisions">
         /// Elenco delle decisioni di deduplicazione.
         /// </param>
         /// <returns>
-        /// <c>true</c> se esiste almeno un file candidato all'eliminazione; altrimenti <c>false</c>.
+        /// Numero totale dei file da eliminare.
         /// </returns>
-        private static bool HasFilesToDelete(List<DuplicateBinaryDecision> decisions)
+        private static int CountFilesToDelete(List<DuplicateBinaryDecision> decisions)
         {
             if (decisions == null || decisions.Count == 0)
             {
-                return false;
+                return 0;
             }
+
+            int total = 0;
 
             foreach (DuplicateBinaryDecision decision in decisions)
             {
-                if (decision.FileDaEliminare != null && decision.FileDaEliminare.Count > 0)
+                if (decision.FileDaEliminare != null)
                 {
-                    return true;
+                    total += decision.FileDaEliminare.Count;
                 }
             }
 
-            return false;
+            return total;
         }
     }
 }
