@@ -13,7 +13,8 @@ namespace Foto_CreaDB2
         /// <summary>
         /// Avvia l'applicazione console.
         /// Legge i parametri di input, prepara configurazione e dipendenze,
-        /// esegue la scansione dei file e stampa il report finale dei duplicati binari.
+        /// esegue la scansione dei file, stampa il report finale dei duplicati binari
+        /// e, su conferma dell'utente, procede con la cancellazione dei file selezionati.
         /// </summary>
         /// <param name="args">
         /// Argomenti passati da riga di comando.
@@ -81,6 +82,29 @@ namespace Foto_CreaDB2
 
                         DuplicateBinaryReportWriter reportWriter = new DuplicateBinaryReportWriter();
                         reportWriter.Write(duplicateDecisions);
+
+                        if (HasFilesToDelete(duplicateDecisions))
+                        {
+                            logger.WriteLine("Procedo alla cancellazione? (S/N)");
+
+                            ConsoleKeyInfo keyInfo = Console.ReadKey();
+                            logger.WriteLine("");
+                            logger.WriteLine("");
+
+                            if (keyInfo.Key == ConsoleKey.S)
+                            {
+                                DuplicateBinaryDeletionService deletionService = new DuplicateBinaryDeletionService();
+                                deletionService.DeleteFiles(duplicateDecisions, logger);
+                            }
+                            else
+                            {
+                                logger.WriteLine("Cancellazione annullata.");
+                            }
+                        }
+                        else
+                        {
+                            logger.WriteLine("Nessun file da cancellare.");
+                        }
                     }
                 }
 
@@ -95,6 +119,33 @@ namespace Foto_CreaDB2
             logger.WriteLine("");
             logger.WriteLine("Premi un tasto per uscire...");
             Console.ReadKey();
+        }
+
+        /// <summary>
+        /// Verifica se tra le decisioni ricevute esiste almeno un file da eliminare.
+        /// </summary>
+        /// <param name="decisions">
+        /// Elenco delle decisioni di deduplicazione.
+        /// </param>
+        /// <returns>
+        /// <c>true</c> se esiste almeno un file candidato all'eliminazione; altrimenti <c>false</c>.
+        /// </returns>
+        private static bool HasFilesToDelete(List<DuplicateBinaryDecision> decisions)
+        {
+            if (decisions == null || decisions.Count == 0)
+            {
+                return false;
+            }
+
+            foreach (DuplicateBinaryDecision decision in decisions)
+            {
+                if (decision.FileDaEliminare != null && decision.FileDaEliminare.Count > 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
