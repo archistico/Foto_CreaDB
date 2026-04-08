@@ -36,6 +36,11 @@ namespace Foto_CreaDB2
         public int ProgressEvery { get; set; } = 1000;
 
         /// <summary>
+        /// Indica se deve essere stampato il report dettagliato dei duplicati binari.
+        /// </summary>
+        public bool VerboseDuplicates { get; set; } = false;
+
+        /// <summary>
         /// Insieme delle estensioni file consentite durante la scansione.
         /// Il confronto viene eseguito senza distinzione tra maiuscole e minuscole.
         /// </summary>
