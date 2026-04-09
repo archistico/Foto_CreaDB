@@ -1,11 +1,12 @@
-﻿using System.Collections.ObjectModel;
+﻿using FotoCreaDB.Wpf.Adapters;
+using FotoCreaDB.Wpf.Commands;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using FotoCreaDB.Wpf.Adapters;
-using FotoCreaDB.Wpf.Commands;
-using Foto_CreaDB2;
 using System.Windows.Forms;
+using Foto_CreaDB2;
 
 namespace FotoCreaDB.Wpf.ViewModels
 {
@@ -16,14 +17,14 @@ namespace FotoCreaDB.Wpf.ViewModels
         private readonly DuplicateDeletionService _deletionService;
         private readonly WpfServiceBridge _bridge;
 
-        private string _fotoPath = "E:\\siti\\2026 Foto_CreaDB\\Altro\\ImmaginiTest";
+        private string _fotoPath = string.Empty;
         private string _databasePath = "foto.db";
+        private bool _verboseDuplicates;
         private bool _isBusy;
-        private string _statusMessage = "Pronta.";
-        private bool _verboseDuplicates = true;
+        private string _statusMessage = "Pronto";
         private int _lastDuplicateGroupsCount;
         private int _lastFilesToDeleteCount;
-        private string _lastFilesToDeleteSizeFormatted = "0";
+        private string _lastFilesToDeleteSizeFormatted = "0 B";
 
         public MainViewModel()
         {
@@ -39,6 +40,7 @@ namespace FotoCreaDB.Wpf.ViewModels
 
             BrowseFotoPathCommand = new RelayCommand(_ => BrowseFotoPath(), _ => !IsBusy);
             BrowseDatabasePathCommand = new RelayCommand(_ => BrowseDatabasePath(), _ => !IsBusy);
+            OpenPathInExplorerCommand = new RelayCommand(path => OpenPathInExplorer(path as string));
         }
 
         private static string FormatBytes(long bytes)
@@ -151,6 +153,8 @@ namespace FotoCreaDB.Wpf.ViewModels
 
         public ICommand BrowseDatabasePathCommand { get; }
 
+        public ICommand OpenPathInExplorerCommand { get; }
+
         private bool CanRunAnalyze()
         {
             return !IsBusy
@@ -223,6 +227,70 @@ namespace FotoCreaDB.Wpf.ViewModels
             if (result == true)
             {
                 DatabasePath = dialog.FileName;
+            }
+        }
+
+        private void OpenPathInExplorer(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return;
+            }
+
+            try
+            {
+                string normalizedPath = path.Trim().Trim('"');
+
+                if (File.Exists(normalizedPath))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = "/select,\"" + normalizedPath + "\"",
+                        UseShellExecute = true
+                    });
+
+                    return;
+                }
+
+                if (Directory.Exists(normalizedPath))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = "\"" + normalizedPath + "\"",
+                        UseShellExecute = true
+                    });
+
+                    return;
+                }
+
+                string? parentDirectory = Path.GetDirectoryName(normalizedPath);
+                if (!string.IsNullOrWhiteSpace(parentDirectory) && Directory.Exists(parentDirectory))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = "\"" + parentDirectory + "\"",
+                        UseShellExecute = true
+                    });
+
+                    return;
+                }
+
+                System.Windows.MessageBox.Show(
+                    "Il file o la cartella non esistono più:\n" + normalizedPath,
+                    "Percorso non trovato",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            }
+            catch (System.Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    "Errore durante l'apertura di Esplora Risorse:\n" + ex.Message,
+                    "Errore",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
             }
         }
 
