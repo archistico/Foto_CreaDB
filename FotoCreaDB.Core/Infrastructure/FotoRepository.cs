@@ -128,6 +128,20 @@ namespace Foto_CreaDB2
             }
         }
 
+        public void DeleteById(long id)
+        {
+            using (SQLiteCommand cmd = _conn.CreateCommand())
+            {
+                cmd.CommandText =
+                    "DELETE FROM FOTO "
+                    + "WHERE ID = @id";
+
+                cmd.Parameters.AddWithValue("@id", id);
+
+                cmd.ExecuteNonQuery();
+            }
+        }
+
         public void TouchAsSeenWithoutRehash(string percorsoCompleto, string dataScansione)
         {
             using (SQLiteCommand cmd = _conn.CreateCommand())

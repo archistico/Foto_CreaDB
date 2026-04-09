@@ -19,5 +19,15 @@
         /// Numero totale dei file candidati alla cancellazione.
         /// </summary>
         public int FilesToDeleteCount { get; set; }
+
+        /// <summary>
+        /// Numero dei file eliminati con successo dal disco.
+        /// </summary>
+        public int FilesDeletedCount { get; set; }
+
+        /// <summary>
+        /// Numero dei record eliminati con successo dal database.
+        /// </summary>
+        public int DatabaseRecordsDeletedCount { get; set; }
     }
 }

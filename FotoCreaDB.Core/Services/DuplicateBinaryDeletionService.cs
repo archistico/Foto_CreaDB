@@ -11,14 +11,21 @@ namespace Foto_CreaDB2
     public class DuplicateBinaryDeletionService
     {
         /// <summary>
-        /// Elimina dal disco tutti i file indicati nelle decisioni ricevute.
+        /// Elimina dal disco tutti i file indicati nelle decisioni ricevute e,
+        /// se la cancellazione fisica riesce, rimuove anche il relativo record dal database.
         /// </summary>
         /// <param name="decisions">
         /// Elenco delle decisioni contenenti i file da eliminare.
         /// </param>
+        /// <param name="nomeDb">
+        /// Percorso del database SQLite da aggiornare.
+        /// </param>
         /// <param name="logger">
         /// Logger usato per scrivere errori e riepilogo operazioni.
         /// Può essere null se il chiamante gestisce il logging in altro modo.
+        /// </param>
+        /// <param name="deletedDbRecordsCount">
+        /// Restituisce il numero di record eliminati dal database.
         /// </param>
         /// <param name="progress">
         /// Callback di avanzamento della cancellazione.
@@ -27,14 +34,18 @@ namespace Foto_CreaDB2
         /// Callback di log strutturato indipendente dalla console.
         /// </param>
         /// <returns>
-        /// Numero totale di file eliminati con successo.
+        /// Numero totale di file eliminati con successo dal disco.
         /// </returns>
         public int DeleteFiles(
             List<DuplicateBinaryDecision> decisions,
+            string nomeDb,
             Logger logger,
+            out int deletedDbRecordsCount,
             IProgress<DeletionProgress> progress = null,
             Action<ServiceLogMessage> log = null)
         {
+            deletedDbRecordsCount = 0;
+
             if (decisions == null || decisions.Count == 0)
             {
                 ServiceCallbackHelper.ReportProgress(
@@ -54,6 +65,11 @@ namespace Foto_CreaDB2
             int deletedCount = 0;
 
             ServiceCallbackHelper.Info(log, "Avvio cancellazione fisica dei file duplicati.");
+
+            using DatabaseManager dbManager = new DatabaseManager(nomeDb, false);
+            dbManager.Initialize();
+
+            using FotoRepository repository = new FotoRepository(dbManager.Connection!);
 
             ServiceCallbackHelper.ReportProgress(
                 progress,
@@ -87,6 +103,12 @@ namespace Foto_CreaDB2
 
                             logger?.WriteLine("ELIMINATO: " + item.PercorsoCompleto);
                             ServiceCallbackHelper.Info(log, "ELIMINATO: " + item.PercorsoCompleto);
+
+                            repository.DeleteById(item.Id);
+                            deletedDbRecordsCount++;
+
+                            logger?.WriteLine("RECORD DB ELIMINATO: ID=" + item.Id);
+                            ServiceCallbackHelper.Info(log, "RECORD DB ELIMINATO: ID=" + item.Id);
                         }
                         else
                         {
@@ -116,9 +138,11 @@ namespace Foto_CreaDB2
             }
 
             logger?.WriteLine("");
-            logger?.WriteLine("File eliminati con successo: " + deletedCount);
+            logger?.WriteLine("File eliminati con successo        : " + deletedCount);
+            logger?.WriteLine("Record DB eliminati con successo   : " + deletedDbRecordsCount);
 
             ServiceCallbackHelper.Info(log, "File eliminati con successo: " + deletedCount);
+            ServiceCallbackHelper.Info(log, "Record DB eliminati con successo: " + deletedDbRecordsCount);
 
             return deletedCount;
         }
