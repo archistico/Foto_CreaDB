@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "R:\\Siti\\2026-Foto_CreaDB\\FotoCreaDB.Tests.Unit\\FotoCreaDB.Tests.Unit.csproj": {}
+    "E:\\siti\\2026 Foto_CreaDB\\Foto_CreaDB\\FotoCreaDB.Tests.Unit\\FotoCreaDB.Tests.Unit.csproj": {}
   },
   "projects": {
-    "R:\\Siti\\2026-Foto_CreaDB\\FotoCreaDB.Core\\FotoCreaDB.Core.csproj": {
+    "E:\\siti\\2026 Foto_CreaDB\\Foto_CreaDB\\FotoCreaDB.Core\\FotoCreaDB.Core.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "R:\\Siti\\2026-Foto_CreaDB\\FotoCreaDB.Core\\FotoCreaDB.Core.csproj",
+        "projectUniqueName": "E:\\siti\\2026 Foto_CreaDB\\Foto_CreaDB\\FotoCreaDB.Core\\FotoCreaDB.Core.csproj",
         "projectName": "FotoCreaDB.Core",
-        "projectPath": "R:\\Siti\\2026-Foto_CreaDB\\FotoCreaDB.Core\\FotoCreaDB.Core.csproj",
-        "packagesPath": "C:\\Users\\rollandine\\.nuget\\packages\\",
-        "outputPath": "R:\\Siti\\2026-Foto_CreaDB\\FotoCreaDB.Core\\obj\\",
+        "projectPath": "E:\\siti\\2026 Foto_CreaDB\\Foto_CreaDB\\FotoCreaDB.Core\\FotoCreaDB.Core.csproj",
+        "packagesPath": "C:\\Users\\Utente\\.nuget\\packages\\",
+        "outputPath": "E:\\siti\\2026 Foto_CreaDB\\Foto_CreaDB\\FotoCreaDB.Core\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\rollandine\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\Utente\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -80,20 +80,20 @@
         }
       }
     },
-    "R:\\Siti\\2026-Foto_CreaDB\\FotoCreaDB.Tests.Unit\\FotoCreaDB.Tests.Unit.csproj": {
+    "E:\\siti\\2026 Foto_CreaDB\\Foto_CreaDB\\FotoCreaDB.Tests.Unit\\FotoCreaDB.Tests.Unit.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "R:\\Siti\\2026-Foto_CreaDB\\FotoCreaDB.Tests.Unit\\FotoCreaDB.Tests.Unit.csproj",
+        "projectUniqueName": "E:\\siti\\2026 Foto_CreaDB\\Foto_CreaDB\\FotoCreaDB.Tests.Unit\\FotoCreaDB.Tests.Unit.csproj",
         "projectName": "FotoCreaDB.Tests.Unit",
-        "projectPath": "R:\\Siti\\2026-Foto_CreaDB\\FotoCreaDB.Tests.Unit\\FotoCreaDB.Tests.Unit.csproj",
-        "packagesPath": "C:\\Users\\rollandine\\.nuget\\packages\\",
-        "outputPath": "R:\\Siti\\2026-Foto_CreaDB\\FotoCreaDB.Tests.Unit\\obj\\",
+        "projectPath": "E:\\siti\\2026 Foto_CreaDB\\Foto_CreaDB\\FotoCreaDB.Tests.Unit\\FotoCreaDB.Tests.Unit.csproj",
+        "packagesPath": "C:\\Users\\Utente\\.nuget\\packages\\",
+        "outputPath": "E:\\siti\\2026 Foto_CreaDB\\Foto_CreaDB\\FotoCreaDB.Tests.Unit\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\rollandine\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\Utente\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -109,8 +109,8 @@
           "net8.0": {
             "targetAlias": "net8.0",
             "projectReferences": {
-              "R:\\Siti\\2026-Foto_CreaDB\\FotoCreaDB.Core\\FotoCreaDB.Core.csproj": {
-                "projectPath": "R:\\Siti\\2026-Foto_CreaDB\\FotoCreaDB.Core\\FotoCreaDB.Core.csproj"
+              "E:\\siti\\2026 Foto_CreaDB\\Foto_CreaDB\\FotoCreaDB.Core\\FotoCreaDB.Core.csproj": {
+                "projectPath": "E:\\siti\\2026 Foto_CreaDB\\Foto_CreaDB\\FotoCreaDB.Core\\FotoCreaDB.Core.csproj"
               }
             }
           }
