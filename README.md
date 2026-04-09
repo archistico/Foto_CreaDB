@@ -1,5 +1,9 @@
 # FotoCreaDB
 
+# FotoCreaDB
+
+![Screenshot dell'app](screenshot.png)
+
 App desktop WPF per analizzare collezioni di foto, generare report sui duplicati e cancellare immagini duplicate usando un database SQLite.
 
 ## Caratteristiche
@@ -69,5 +73,3 @@ Questo progetto è distribuito sotto licenza MIT. Vedi il file `LICENSE` per i de
 ## Contatti
 
 Per segnalare problemi o richieste, apri un Issue sul repository GitHub.
-
-This version maintains the original structure and information while ensuring clarity and coherence throughout the document.
