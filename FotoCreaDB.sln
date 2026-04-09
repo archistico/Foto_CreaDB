@@ -3,7 +3,15 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.002.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FotoCreaDB", "FotoCreaDB.csproj", "{9D02254B-36A0-43E1-A381-20AD4D80E663}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FotoCreaDB.Core", "FotoCreaDB.Core\FotoCreaDB.Core.csproj", "{33A1F55C-905F-4B22-885B-D5F7EF11F129}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FotoCreaDB.Console", "FotoCreaDB.Console\FotoCreaDB.Console.csproj", "{802F1C78-A1EF-483A-9A0F-EE651E1E3DC6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FotoCreaDB.Wpf", "FotoCreaDB.Wpf\FotoCreaDB.Wpf.csproj", "{8CFDB805-C5D4-40D4-A313-BE7E41E3C860}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FotoCreaDB.Tests.Unit", "FotoCreaDB.Tests.Unit\FotoCreaDB.Tests.Unit.csproj", "{4C072EDB-C020-46FB-8E64-24AD06776018}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FotoCreaDB.Tests.Integration", "FotoCreaDB.Tests.Integration\FotoCreaDB.Tests.Integration.csproj", "{41F7742F-2AA1-4DF0-A317-D490941EE3E6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +19,26 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{9D02254B-36A0-43E1-A381-20AD4D80E663}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{9D02254B-36A0-43E1-A381-20AD4D80E663}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{9D02254B-36A0-43E1-A381-20AD4D80E663}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{9D02254B-36A0-43E1-A381-20AD4D80E663}.Release|Any CPU.Build.0 = Release|Any CPU
+		{33A1F55C-905F-4B22-885B-D5F7EF11F129}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{33A1F55C-905F-4B22-885B-D5F7EF11F129}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{33A1F55C-905F-4B22-885B-D5F7EF11F129}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{33A1F55C-905F-4B22-885B-D5F7EF11F129}.Release|Any CPU.Build.0 = Release|Any CPU
+		{802F1C78-A1EF-483A-9A0F-EE651E1E3DC6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{802F1C78-A1EF-483A-9A0F-EE651E1E3DC6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{802F1C78-A1EF-483A-9A0F-EE651E1E3DC6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{802F1C78-A1EF-483A-9A0F-EE651E1E3DC6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8CFDB805-C5D4-40D4-A313-BE7E41E3C860}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8CFDB805-C5D4-40D4-A313-BE7E41E3C860}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8CFDB805-C5D4-40D4-A313-BE7E41E3C860}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8CFDB805-C5D4-40D4-A313-BE7E41E3C860}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4C072EDB-C020-46FB-8E64-24AD06776018}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4C072EDB-C020-46FB-8E64-24AD06776018}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4C072EDB-C020-46FB-8E64-24AD06776018}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4C072EDB-C020-46FB-8E64-24AD06776018}.Release|Any CPU.Build.0 = Release|Any CPU
+		{41F7742F-2AA1-4DF0-A317-D490941EE3E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{41F7742F-2AA1-4DF0-A317-D490941EE3E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{41F7742F-2AA1-4DF0-A317-D490941EE3E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{41F7742F-2AA1-4DF0-A317-D490941EE3E6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
