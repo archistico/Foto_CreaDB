@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
 
 namespace Foto_CreaDB2
 {
@@ -73,6 +75,42 @@ namespace Foto_CreaDB2
                     TotalGroups = totalGroups
                 });
 
+            // Se richiesto, emetti nel log i dettagli dei gruppi e dei file candidati alla cancellazione
+            if (decisions != null && decisions.Count > 0)
+            {
+                ServiceCallbackHelper.Info(log, "Report duplicati: dettagli gruppi e file:");
+
+                foreach (DuplicateBinaryDecision decision in decisions)
+                {
+                    try
+                    {
+                        // Linea principale: file da tenere
+                        string keepPath = decision.FileDaTenere?.PercorsoCompleto ?? string.Empty;
+                        string keepSize = FormatBytes(decision.FileDaTenere?.Dimensione ?? decision.Dimensione);
+                        ServiceCallbackHelper.Info(log, $"Tenere: {keepPath} ({keepSize})");
+
+                        // File duplicati: indentazione e parola chiave "Duplicato:" per chiarezza
+                        if (decision.FileDaEliminare != null)
+                        {
+                            foreach (DuplicateBinaryCandidate dup in decision.FileDaEliminare)
+                            {
+                                string dupPath = dup?.PercorsoCompleto ?? string.Empty;
+                                string dupSize = FormatBytes(dup?.Dimensione ?? 0);
+                                ServiceCallbackHelper.Info(log, $"  Cancellare: {dupPath} ({dupSize})");
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Non fermare il caricamento report per problemi di formattazione del log
+                    }
+                }
+            }
+            else
+            {
+                ServiceCallbackHelper.Info(log, "Nessun gruppo duplicati trovato.");
+            }
+
             ServiceCallbackHelper.Info(log, "Report duplicati caricato.");
 
             return new DuplicateReportResult
@@ -108,6 +146,30 @@ namespace Foto_CreaDB2
             }
 
             return total;
+        }
+
+        private static string FormatBytes(long bytes)
+        {
+            const long KB = 1024;
+            const long MB = KB * 1024;
+            const long GB = MB * 1024;
+
+            if (bytes >= GB)
+            {
+                return (bytes / (double)GB).ToString("0.00", CultureInfo.InvariantCulture) + " GB";
+            }
+
+            if (bytes >= MB)
+            {
+                return (bytes / (double)MB).ToString("0.00", CultureInfo.InvariantCulture) + " MB";
+            }
+
+            if (bytes >= KB)
+            {
+                return (bytes / (double)KB).ToString("0.00", CultureInfo.InvariantCulture) + " KB";
+            }
+
+            return bytes + " B";
         }
     }
 }
