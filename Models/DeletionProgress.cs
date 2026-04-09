@@ -1,28 +1,27 @@
 ﻿namespace Foto_CreaDB2
 {
     /// <summary>
-    /// Rappresenta lo stato di avanzamento dell'analisi.
+    /// Rappresenta lo stato di avanzamento della cancellazione.
     /// </summary>
-    public class AnalysisProgress
+    public class DeletionProgress
     {
         /// <summary>
-        /// Numero di file già analizzati.
+        /// Numero di file già elaborati.
         /// </summary>
         public int ProcessedFiles { get; set; }
 
         /// <summary>
-        /// Numero totale di file da analizzare.
-        /// Se non noto, può restare a 0.
+        /// Numero totale di file da elaborare.
         /// </summary>
         public int TotalFiles { get; set; }
 
         /// <summary>
-        /// Percorso del file attualmente in lavorazione.
+        /// Percorso del file attualmente in elaborazione.
         /// </summary>
         public string CurrentFile { get; set; }
 
         /// <summary>
-        /// Percentuale calcolata sull'avanzamento.
+        /// Percentuale di avanzamento.
         /// </summary>
         public int Percentage
         {

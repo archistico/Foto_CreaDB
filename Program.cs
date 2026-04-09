@@ -103,35 +103,26 @@ namespace Foto_CreaDB2
         /// <param name="logger">Logger dell'applicazione.</param>
         private static void RunAnalisi(AppConfig config, Logger logger)
         {
-            ScanStatistics stats = new ScanStatistics();
-            MetadataService metadataService = new MetadataService();
-            HashService hashService = new HashService();
+            AnalysisService service = new AnalysisService();
+            ConsoleServiceAdapter adapter = new ConsoleServiceAdapter(logger);
 
-            using (DatabaseManager dbManager = new DatabaseManager(config.NomeDb, config.CancellaDbSeEsiste))
-            {
-                dbManager.Initialize();
+            adapter.Reset();
 
-                if (dbManager.Connection == null)
+            AnalysisResult result = service.Run(
+                new AnalysisRequest
                 {
-                    throw new InvalidOperationException("La connessione SQLite non è disponibile dopo l'inizializzazione.");
-                }
-
-                using (FotoRepository repository = new FotoRepository(dbManager.Connection))
-                {
-                    FileScanner scanner = new FileScanner(
-                        config,
-                        repository,
-                        metadataService,
-                        hashService,
-                        logger,
-                        stats);
-
-                    scanner.Scan();
-                }
-            }
+                    Paths = config.Paths,
+                    NomeDb = config.NomeDb,
+                    CancellaDbSeEsiste = config.CancellaDbSeEsiste,
+                    LogDettagliato = config.LogDettagliato,
+                    ProgressEvery = config.ProgressEvery,
+                    VerboseDuplicates = config.VerboseDuplicates
+                },
+                progress: adapter.CreateAnalysisProgress(),
+                log: adapter.OnLog);
 
             logger.WriteLine("");
-            logger.WriteLine("Analisi completata.");
+            logger.WriteLine(result.Message);
         }
 
         /// <summary>
@@ -142,18 +133,28 @@ namespace Foto_CreaDB2
         /// <param name="logger">Logger dell'applicazione.</param>
         private static void RunReport(AppConfig config, Logger logger)
         {
-            List<DuplicateBinaryDecision> duplicateDecisions = LoadDuplicateDecisions(config);
+            DuplicateReportService service = new DuplicateReportService();
+            ConsoleServiceAdapter adapter = new ConsoleServiceAdapter(logger);
 
-            int fileCandidatiAllaCancellazione = CountFilesToDelete(duplicateDecisions);
+            adapter.Reset();
+
+            DuplicateReportResult result = service.Run(
+                new DuplicateReportRequest
+                {
+                    NomeDb = config.NomeDb,
+                    VerboseDuplicates = config.VerboseDuplicates
+                },
+                progress: adapter.CreateReportProgress(),
+                log: adapter.OnLog);
 
             logger.WriteLine("");
-            logger.WriteLine("Duplicati trovati                : " + duplicateDecisions.Count);
-            logger.WriteLine("File candidati alla cancellazione: " + fileCandidatiAllaCancellazione);
+            logger.WriteLine("Duplicati trovati                : " + result.DuplicateGroupsCount);
+            logger.WriteLine("File candidati alla cancellazione: " + result.FilesToDeleteCount);
 
-            if (config.VerboseDuplicates)
+            if (config.VerboseDuplicates && result.Decisions != null && result.Decisions.Count > 0)
             {
                 DuplicateBinaryReportWriter reportWriter = new DuplicateBinaryReportWriter();
-                reportWriter.Write(duplicateDecisions);
+                reportWriter.Write(result.Decisions);
             }
         }
 
@@ -165,21 +166,31 @@ namespace Foto_CreaDB2
         /// <param name="logger">Logger dell'applicazione.</param>
         private static void RunCancella(AppConfig config, Logger logger)
         {
-            List<DuplicateBinaryDecision> duplicateDecisions = LoadDuplicateDecisions(config);
+            ConsoleServiceAdapter adapter = new ConsoleServiceAdapter(logger);
+            DuplicateReportService reportService = new DuplicateReportService();
 
-            int fileCandidatiAllaCancellazione = CountFilesToDelete(duplicateDecisions);
+            adapter.Reset();
+
+            DuplicateReportResult reportResult = reportService.Run(
+                new DuplicateReportRequest
+                {
+                    NomeDb = config.NomeDb,
+                    VerboseDuplicates = config.VerboseDuplicates
+                },
+                progress: adapter.CreateReportProgress(),
+                log: adapter.OnLog);
 
             logger.WriteLine("");
-            logger.WriteLine("Duplicati trovati                : " + duplicateDecisions.Count);
-            logger.WriteLine("File candidati alla cancellazione: " + fileCandidatiAllaCancellazione);
+            logger.WriteLine("Duplicati trovati                : " + reportResult.DuplicateGroupsCount);
+            logger.WriteLine("File candidati alla cancellazione: " + reportResult.FilesToDeleteCount);
 
-            if (config.VerboseDuplicates)
+            if (config.VerboseDuplicates && reportResult.Decisions != null && reportResult.Decisions.Count > 0)
             {
                 DuplicateBinaryReportWriter reportWriter = new DuplicateBinaryReportWriter();
-                reportWriter.Write(duplicateDecisions);
+                reportWriter.Write(reportResult.Decisions);
             }
 
-            if (fileCandidatiAllaCancellazione <= 0)
+            if (reportResult.FilesToDeleteCount <= 0)
             {
                 logger.WriteLine("Nessun file da cancellare.");
                 return;
@@ -195,66 +206,25 @@ namespace Foto_CreaDB2
 
             if (keyInfo.Key == ConsoleKey.S)
             {
-                DuplicateBinaryDeletionService deletionService = new DuplicateBinaryDeletionService();
-                deletionService.DeleteFiles(duplicateDecisions, logger);
+                DuplicateDeletionService deletionService = new DuplicateDeletionService();
+
+                adapter.Reset();
+
+                DeletionResult deletionResult = deletionService.Run(
+                    new DeletionRequest
+                    {
+                        NomeDb = config.NomeDb,
+                        VerboseDuplicates = config.VerboseDuplicates
+                    },
+                    progress: adapter.CreateDeletionProgress(),
+                    log: adapter.OnLog);
+
+                logger.WriteLine(deletionResult.Message);
             }
             else
             {
                 logger.WriteLine("Cancellazione annullata.");
             }
-        }
-
-        /// <summary>
-        /// Legge dal database l'elenco delle decisioni relative ai duplicati binari.
-        /// </summary>
-        /// <param name="config">Configurazione applicativa.</param>
-        /// <returns>Elenco delle decisioni di deduplicazione.</returns>
-        private static List<DuplicateBinaryDecision> LoadDuplicateDecisions(AppConfig config)
-        {
-            using (DatabaseManager dbManager = new DatabaseManager(config.NomeDb, false))
-            {
-                dbManager.Initialize();
-
-                if (dbManager.Connection == null)
-                {
-                    throw new InvalidOperationException("La connessione SQLite non è disponibile dopo l'inizializzazione.");
-                }
-
-                using (FotoRepository repository = new FotoRepository(dbManager.Connection))
-                {
-                    return repository.GetBinaryDuplicateDecisions();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Conta il numero totale di file candidati alla cancellazione
-        /// presenti nell'elenco delle decisioni.
-        /// </summary>
-        /// <param name="decisions">
-        /// Elenco delle decisioni di deduplicazione.
-        /// </param>
-        /// <returns>
-        /// Numero totale dei file da eliminare.
-        /// </returns>
-        private static int CountFilesToDelete(List<DuplicateBinaryDecision> decisions)
-        {
-            if (decisions == null || decisions.Count == 0)
-            {
-                return 0;
-            }
-
-            int total = 0;
-
-            foreach (DuplicateBinaryDecision decision in decisions)
-            {
-                if (decision.FileDaEliminare != null)
-                {
-                    total += decision.FileDaEliminare.Count;
-                }
-            }
-
-            return total;
         }
 
         /// <summary>

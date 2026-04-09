@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Foto_CreaDB2
@@ -16,6 +17,11 @@ namespace Foto_CreaDB2
         private readonly Logger _logger;
         private readonly ScanStatistics _stats;
         private readonly string _currentScanToken;
+        private readonly IProgress<AnalysisProgress> _progress;
+        private readonly Action<ServiceLogMessage> _log;
+
+        private int _totalFilesToProcess;
+        private int _processedFiles;
 
         /// <summary>
         /// Inizializza una nuova istanza dello scanner con tutti i servizi necessari alla scansione.
@@ -34,9 +40,16 @@ namespace Foto_CreaDB2
         /// </param>
         /// <param name="logger">
         /// Componente usato per il logging di errori, avanzamento e riepiloghi.
+        /// Può essere null se il chiamante gestisce il logging in altro modo.
         /// </param>
         /// <param name="stats">
         /// Oggetto che raccoglie le statistiche cumulative della scansione.
+        /// </param>
+        /// <param name="progress">
+        /// Callback di avanzamento dell'analisi.
+        /// </param>
+        /// <param name="log">
+        /// Callback di log strutturato indipendente dalla console.
         /// </param>
         public FileScanner(
             AppConfig config,
@@ -44,15 +57,19 @@ namespace Foto_CreaDB2
             MetadataService metadataService,
             HashService hashService,
             Logger logger,
-            ScanStatistics stats)
+            ScanStatistics stats,
+            IProgress<AnalysisProgress> progress = null,
+            Action<ServiceLogMessage> log = null)
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
             _metadataService = metadataService ?? throw new ArgumentNullException(nameof(metadataService));
             _hashService = hashService ?? throw new ArgumentNullException(nameof(hashService));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _logger = logger;
             _stats = stats ?? throw new ArgumentNullException(nameof(stats));
             _currentScanToken = Guid.NewGuid().ToString("N");
+            _progress = progress;
+            _log = log;
         }
 
         /// <summary>
@@ -67,6 +84,12 @@ namespace Foto_CreaDB2
             }
 
             _stats.TotalePathIniziali = _config.Paths.Length;
+
+            _totalFilesToProcess = CountProcessableFiles();
+            _processedFiles = 0;
+
+            ServiceCallbackHelper.Info(_log, "Conteggio file da analizzare completato: " + _totalFilesToProcess);
+            ReportProgress(null);
 
             foreach (string path in _config.Paths)
             {
@@ -99,11 +122,114 @@ namespace Foto_CreaDB2
                 }
                 catch (Exception ex)
                 {
-                    _logger.WriteError($"Errore durante l'analisi del path iniziale '{path}'", ex);
+                    _logger?.WriteError($"Errore durante l'analisi del path iniziale '{path}'", ex);
+                    ServiceCallbackHelper.Error(_log, $"Errore durante l'analisi del path iniziale '{path}'", ex);
                 }
             }
 
-            _logger.WriteFinalStatistics(_stats);
+            ReportProgress(null);
+
+            _logger?.WriteFinalStatistics(_stats);
+            ServiceCallbackHelper.Info(_log, "Scansione completata.");
+        }
+
+        /// <summary>
+        /// Conta il numero totale di file effettivamente processabili
+        /// considerando solo i percorsi validi e le estensioni consentite.
+        /// </summary>
+        /// <returns>
+        /// Numero totale di file candidati all'analisi.
+        /// </returns>
+        private int CountProcessableFiles()
+        {
+            int total = 0;
+
+            foreach (string path in _config.Paths)
+            {
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(path))
+                    {
+                        continue;
+                    }
+
+                    string fullPath = Path.GetFullPath(path);
+
+                    if (File.Exists(fullPath))
+                    {
+                        string estensione = Utility.GetEstensione(fullPath);
+                        if (_config.EstensioniPermesse.Contains(estensione))
+                        {
+                            total++;
+                        }
+                    }
+                    else if (System.IO.Directory.Exists(fullPath))
+                    {
+                        total += CountFilesInDirectory(fullPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ServiceCallbackHelper.Warning(_log, $"Impossibile contare i file nel path '{path}': {ex.Message}");
+                }
+            }
+
+            return total;
+        }
+
+        /// <summary>
+        /// Conta ricorsivamente i file processabili presenti in una cartella.
+        /// </summary>
+        /// <param name="targetDirectory">
+        /// Cartella da analizzare.
+        /// </param>
+        /// <returns>
+        /// Numero di file con estensione valida.
+        /// </returns>
+        private int CountFilesInDirectory(string targetDirectory)
+        {
+            int total = 0;
+
+            try
+            {
+                foreach (string fileName in System.IO.Directory.EnumerateFiles(targetDirectory))
+                {
+                    try
+                    {
+                        string estensione = Utility.GetEstensione(fileName);
+                        if (_config.EstensioniPermesse.Contains(estensione))
+                        {
+                            total++;
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                foreach (string subdirectory in System.IO.Directory.EnumerateDirectories(targetDirectory))
+                {
+                    total += CountFilesInDirectory(subdirectory);
+                }
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                ServiceCallbackHelper.Warning(_log, $"Accesso negato durante il conteggio della cartella '{targetDirectory}': {ex.Message}");
+            }
+            catch (PathTooLongException ex)
+            {
+                ServiceCallbackHelper.Warning(_log, $"Percorso troppo lungo durante il conteggio della cartella '{targetDirectory}': {ex.Message}");
+            }
+            catch (DirectoryNotFoundException ex)
+            {
+                ServiceCallbackHelper.Warning(_log, $"Cartella non trovata durante il conteggio '{targetDirectory}': {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                ServiceCallbackHelper.Warning(_log, $"Errore generico durante il conteggio della cartella '{targetDirectory}': {ex.Message}");
+            }
+
+            return total;
         }
 
         /// <summary>
@@ -135,7 +261,8 @@ namespace Foto_CreaDB2
                     catch (Exception ex)
                     {
                         _stats.TotaleErroriFile++;
-                        _logger.WriteError($"Errore durante la lavorazione del file '{fileName}'", ex);
+                        _logger?.WriteError($"Errore durante la lavorazione del file '{fileName}'", ex);
+                        ServiceCallbackHelper.Error(_log, $"Errore durante la lavorazione del file '{fileName}'", ex);
                     }
                 }
 
@@ -147,22 +274,26 @@ namespace Foto_CreaDB2
             catch (UnauthorizedAccessException ex)
             {
                 _stats.TotaleErroriCartelle++;
-                _logger.WriteError($"Accesso negato alla cartella '{targetDirectory}'", ex);
+                _logger?.WriteError($"Accesso negato alla cartella '{targetDirectory}'", ex);
+                ServiceCallbackHelper.Error(_log, $"Accesso negato alla cartella '{targetDirectory}'", ex);
             }
             catch (PathTooLongException ex)
             {
                 _stats.TotaleErroriCartelle++;
-                _logger.WriteError($"Percorso troppo lungo '{targetDirectory}'", ex);
+                _logger?.WriteError($"Percorso troppo lungo '{targetDirectory}'", ex);
+                ServiceCallbackHelper.Error(_log, $"Percorso troppo lungo '{targetDirectory}'", ex);
             }
             catch (DirectoryNotFoundException ex)
             {
                 _stats.TotaleErroriCartelle++;
-                _logger.WriteError($"Cartella non trovata '{targetDirectory}'", ex);
+                _logger?.WriteError($"Cartella non trovata '{targetDirectory}'", ex);
+                ServiceCallbackHelper.Error(_log, $"Cartella non trovata '{targetDirectory}'", ex);
             }
             catch (Exception ex)
             {
                 _stats.TotaleErroriCartelle++;
-                _logger.WriteError($"Errore generico nella cartella '{targetDirectory}'", ex);
+                _logger?.WriteError($"Errore generico nella cartella '{targetDirectory}'", ex);
+                ServiceCallbackHelper.Error(_log, $"Errore generico nella cartella '{targetDirectory}'", ex);
             }
         }
 
@@ -208,7 +339,8 @@ namespace Foto_CreaDB2
                     fotoSaltata.dataScansione = _currentScanToken;
                     fotoSaltata.fileEsiste = true;
 
-                    _logger.WriteFileProcessed("SKIP", fotoSaltata, _stats);
+                    _logger?.WriteFileProcessed("SKIP", fotoSaltata, _stats);
+                    ServiceCallbackHelper.Info(_log, "SKIP: " + imagePath);
                     return;
                 }
 
@@ -236,13 +368,15 @@ namespace Foto_CreaDB2
                     {
                         _repository.Insert(foto);
                         _stats.TotaleFileInseriti++;
-                        _logger.WriteFileProcessed("INSERT", foto, _stats);
+                        _logger?.WriteFileProcessed("INSERT", foto, _stats);
+                        ServiceCallbackHelper.Info(_log, "INSERT: " + imagePath);
                     }
                     else
                     {
                         _repository.Update(foto);
                         _stats.TotaleFileAggiornati++;
-                        _logger.WriteFileProcessed("UPDATE", foto, _stats);
+                        _logger?.WriteFileProcessed("UPDATE", foto, _stats);
+                        ServiceCallbackHelper.Info(_log, "UPDATE: " + imagePath);
                     }
                 }
                 catch (Exception ex)
@@ -254,23 +388,50 @@ namespace Foto_CreaDB2
             catch (UnauthorizedAccessException ex)
             {
                 _stats.TotaleErroriFile++;
-                _logger.WriteError($"Accesso negato al file '{imagePath}'", ex);
+                _logger?.WriteError($"Accesso negato al file '{imagePath}'", ex);
+                ServiceCallbackHelper.Error(_log, $"Accesso negato al file '{imagePath}'", ex);
             }
             catch (PathTooLongException ex)
             {
                 _stats.TotaleErroriFile++;
-                _logger.WriteError($"Percorso troppo lungo per il file '{imagePath}'", ex);
+                _logger?.WriteError($"Percorso troppo lungo per il file '{imagePath}'", ex);
+                ServiceCallbackHelper.Error(_log, $"Percorso troppo lungo per il file '{imagePath}'", ex);
             }
             catch (IOException ex)
             {
                 _stats.TotaleErroriFile++;
-                _logger.WriteError($"Errore I/O sul file '{imagePath}'", ex);
+                _logger?.WriteError($"Errore I/O sul file '{imagePath}'", ex);
+                ServiceCallbackHelper.Error(_log, $"Errore I/O sul file '{imagePath}'", ex);
             }
             catch (Exception ex)
             {
                 _stats.TotaleErroriFile++;
-                _logger.WriteError($"Errore non gestito sul file '{imagePath}'", ex);
+                _logger?.WriteError($"Errore non gestito sul file '{imagePath}'", ex);
+                ServiceCallbackHelper.Error(_log, $"Errore non gestito sul file '{imagePath}'", ex);
             }
+            finally
+            {
+                _processedFiles++;
+                ReportProgress(imagePath);
+            }
+        }
+
+        /// <summary>
+        /// Notifica lo stato di avanzamento corrente dell'analisi.
+        /// </summary>
+        /// <param name="currentFile">
+        /// File attualmente elaborato.
+        /// </param>
+        private void ReportProgress(string currentFile)
+        {
+            ServiceCallbackHelper.ReportProgress(
+                _progress,
+                new AnalysisProgress
+                {
+                    ProcessedFiles = _processedFiles,
+                    TotalFiles = _totalFilesToProcess,
+                    CurrentFile = currentFile
+                });
         }
 
         /// <summary>
