@@ -23,7 +23,7 @@ namespace FotoCreaDB.Wpf.ViewModels
         private bool _verboseDuplicates = true;
         private int _lastDuplicateGroupsCount;
         private int _lastFilesToDeleteCount;
-        private string _lastFilesToDeleteSizeFormatted = string.Empty;
+        private string _lastFilesToDeleteSizeFormatted = "0";
 
         public MainViewModel()
         {
