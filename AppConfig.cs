@@ -41,6 +41,11 @@ namespace Foto_CreaDB2
         public bool VerboseDuplicates { get; set; } = false;
 
         /// <summary>
+        /// Azione richiesta dall'utente da riga di comando.
+        /// </summary>
+        public AppAction Action { get; set; }
+
+        /// <summary>
         /// Insieme delle estensioni file consentite durante la scansione.
         /// Il confronto viene eseguito senza distinzione tra maiuscole e minuscole.
         /// </summary>
@@ -50,7 +55,7 @@ namespace Foto_CreaDB2
                 "jpg", "jpeg", "dcr", "dng", "crw",
                 "gif", "png", "ico", "raw", "arw", "cr2",
                 "avi", "wmv", "wav", "mp4", "mp3", "mov",
-                "bmp", "psd", "3gp"
+                "bmp", "psd", "3gp", "webp", "heic", "heif", "tiff", "tif"
             };
     }
 }

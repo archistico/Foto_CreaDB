@@ -5,142 +5,52 @@ namespace Foto_CreaDB2
 {
     /// <summary>
     /// Punto di ingresso dell'applicazione.
-    /// Si occupa di leggere gli argomenti da riga di comando, inizializzare i servizi
-    /// principali e avviare il processo di scansione e analisi dei duplicati.
+    /// Si occupa di interpretare gli argomenti da riga di comando
+    /// e di avviare una delle tre modalità disponibili:
+    /// analisi, report o cancellazione duplicati.
     /// </summary>
     public class Program
     {
         /// <summary>
         /// Avvia l'applicazione console.
-        /// Legge i parametri di input, prepara configurazione e dipendenze,
-        /// esegue la scansione dei file, gestisce i duplicati binari
-        /// e, su conferma dell'utente, procede con la cancellazione dei file selezionati.
         /// </summary>
         /// <param name="args">
         /// Argomenti passati da riga di comando.
-        /// Il primo rappresenta il percorso da analizzare; il secondo, se presente,
-        /// rappresenta il percorso del database SQLite.
-        /// I flag opzionali possono includere <c>--verbose</c>.
         /// </param>
         public static void Main(string[] args)
         {
-            if (args == null || args.Length == 0 || string.IsNullOrWhiteSpace(args[0]))
-            {
-                Console.WriteLine("Uso:");
-                Console.WriteLine(@"Foto_CreaDB2.exe ""C:\Percorso\Foto""");
-                Console.WriteLine(@"Foto_CreaDB2.exe ""C:\Percorso\Foto"" ""C:\Percorso\DB\foto.db""");
-                Console.WriteLine(@"Foto_CreaDB2.exe ""C:\Percorso\Foto"" --verbose");
-                Console.WriteLine(@"Foto_CreaDB2.exe ""C:\Percorso\Foto"" ""C:\Percorso\DB\foto.db"" --verbose");
-                Console.WriteLine("");
-                Console.WriteLine("Note:");
-                Console.WriteLine("- Se passi una cartella, la scansione è ricorsiva.");
-                Console.WriteLine("- Se passi un file, viene analizzato solo quel file.");
-                Console.WriteLine("- Il database NON viene cancellato: la scansione è incrementale.");
-                Console.WriteLine("- Con --verbose viene mostrato il dettaglio dei duplicati da tenere/eliminare.");
-                return;
-            }
-
-            string pathInput = args[0].Trim();
-
-            string nomeDb = "foto.db";
-            bool verboseDuplicates = false;
-
-            for (int i = 1; i < args.Length; i++)
-            {
-                string currentArg = (args[i] ?? "").Trim();
-
-                if (string.Equals(currentArg, "--verbose", StringComparison.OrdinalIgnoreCase))
-                {
-                    verboseDuplicates = true;
-                    continue;
-                }
-
-                if (string.IsNullOrWhiteSpace(currentArg))
-                {
-                    continue;
-                }
-
-                if (string.Equals(nomeDb, "foto.db", StringComparison.OrdinalIgnoreCase))
-                {
-                    nomeDb = currentArg;
-                }
-            }
-
-            AppConfig config = new AppConfig
-            {
-                Paths = new string[] { pathInput },
-                NomeDb = nomeDb,
-                CancellaDbSeEsiste = false,
-                LogDettagliato = false,
-                ProgressEvery = 1000,
-                VerboseDuplicates = verboseDuplicates
-            };
-
-            Logger logger = new Logger(config.LogDettagliato, config.ProgressEvery);
-            ScanStatistics stats = new ScanStatistics();
-            MetadataService metadataService = new MetadataService();
-            HashService hashService = new HashService();
+            Logger logger = null;
 
             try
             {
-                using (DatabaseManager dbManager = new DatabaseManager(config.NomeDb, config.CancellaDbSeEsiste))
+                CommandLineOptions options = CommandLineParser.Parse(args);
+
+                if (options == null)
                 {
-                    dbManager.Initialize();
+                    WriteUsage();
+                    return;
+                }
 
-                    if (dbManager.Connection == null)
-                    {
-                        throw new InvalidOperationException("La connessione SQLite non è disponibile dopo l'inizializzazione.");
-                    }
+                AppConfig config = BuildConfig(options);
 
-                    using (FotoRepository repository = new FotoRepository(dbManager.Connection))
-                    {
-                        FileScanner scanner = new FileScanner(
-                            config,
-                            repository,
-                            metadataService,
-                            hashService,
-                            logger,
-                            stats);
+                logger = new Logger(config.LogDettagliato, config.ProgressEvery);
 
-                        scanner.Scan();
+                switch (config.Action)
+                {
+                    case AppAction.Analisi:
+                        RunAnalisi(config, logger);
+                        break;
 
-                        List<DuplicateBinaryDecision> duplicateDecisions = repository.GetBinaryDuplicateDecisions();
-                        int fileCandidatiAllaCancellazione = CountFilesToDelete(duplicateDecisions);
+                    case AppAction.Report:
+                        RunReport(config, logger);
+                        break;
 
-                        logger.WriteLine("");
-                        logger.WriteLine("Duplicati trovati                : " + duplicateDecisions.Count);
-                        logger.WriteLine("File candidati alla cancellazione: " + fileCandidatiAllaCancellazione);
+                    case AppAction.Cancella:
+                        RunCancella(config, logger);
+                        break;
 
-                        if (config.VerboseDuplicates)
-                        {
-                            DuplicateBinaryReportWriter reportWriter = new DuplicateBinaryReportWriter();
-                            reportWriter.Write(duplicateDecisions);
-                        }
-
-                        if (fileCandidatiAllaCancellazione > 0)
-                        {
-                            logger.WriteLine("");
-                            logger.WriteLine("Procedo alla cancellazione? (S/N)");
-
-                            ConsoleKeyInfo keyInfo = Console.ReadKey();
-                            logger.WriteLine("");
-                            logger.WriteLine("");
-
-                            if (keyInfo.Key == ConsoleKey.S)
-                            {
-                                DuplicateBinaryDeletionService deletionService = new DuplicateBinaryDeletionService();
-                                deletionService.DeleteFiles(duplicateDecisions, logger);
-                            }
-                            else
-                            {
-                                logger.WriteLine("Cancellazione annullata.");
-                            }
-                        }
-                        else
-                        {
-                            logger.WriteLine("Nessun file da cancellare.");
-                        }
-                    }
+                    default:
+                        throw new InvalidOperationException("Azione non gestita.");
                 }
 
                 logger.WriteLine("");
@@ -148,12 +58,173 @@ namespace Foto_CreaDB2
             }
             catch (Exception ex)
             {
-                logger.WriteError("ERRORE FATALE", ex);
+                if (logger != null)
+                {
+                    logger.WriteError("ERRORE FATALE", ex);
+                }
+                else
+                {
+                    Console.WriteLine("ERRORE FATALE");
+                    Console.WriteLine(ex.Message);
+                }
+            }
+
+            Console.WriteLine("");
+            Console.WriteLine("Premi un tasto per uscire...");
+            Console.ReadKey();
+        }
+
+        /// <summary>
+        /// Costruisce la configurazione applicativa a partire dalle opzioni parse.
+        /// </summary>
+        /// <param name="options">Opzioni da riga di comando.</param>
+        /// <returns>Configurazione pronta all'uso.</returns>
+        private static AppConfig BuildConfig(CommandLineOptions options)
+        {
+            return new AppConfig
+            {
+                Paths = string.IsNullOrWhiteSpace(options.PathInput)
+                    ? new string[0]
+                    : new string[] { options.PathInput },
+                NomeDb = options.NomeDb,
+                CancellaDbSeEsiste = false,
+                LogDettagliato = false,
+                ProgressEvery = 1000,
+                VerboseDuplicates = options.VerboseDuplicates,
+                Action = options.Action
+            };
+        }
+
+        /// <summary>
+        /// Esegue l'analisi dei file e aggiorna il database.
+        /// Non esegue report né cancellazioni.
+        /// </summary>
+        /// <param name="config">Configurazione applicativa.</param>
+        /// <param name="logger">Logger dell'applicazione.</param>
+        private static void RunAnalisi(AppConfig config, Logger logger)
+        {
+            ScanStatistics stats = new ScanStatistics();
+            MetadataService metadataService = new MetadataService();
+            HashService hashService = new HashService();
+
+            using (DatabaseManager dbManager = new DatabaseManager(config.NomeDb, config.CancellaDbSeEsiste))
+            {
+                dbManager.Initialize();
+
+                if (dbManager.Connection == null)
+                {
+                    throw new InvalidOperationException("La connessione SQLite non è disponibile dopo l'inizializzazione.");
+                }
+
+                using (FotoRepository repository = new FotoRepository(dbManager.Connection))
+                {
+                    FileScanner scanner = new FileScanner(
+                        config,
+                        repository,
+                        metadataService,
+                        hashService,
+                        logger,
+                        stats);
+
+                    scanner.Scan();
+                }
             }
 
             logger.WriteLine("");
-            logger.WriteLine("Premi un tasto per uscire...");
-            Console.ReadKey();
+            logger.WriteLine("Analisi completata.");
+        }
+
+        /// <summary>
+        /// Legge dal database le decisioni sui duplicati e mostra il report
+        /// senza cancellare alcun file.
+        /// </summary>
+        /// <param name="config">Configurazione applicativa.</param>
+        /// <param name="logger">Logger dell'applicazione.</param>
+        private static void RunReport(AppConfig config, Logger logger)
+        {
+            List<DuplicateBinaryDecision> duplicateDecisions = LoadDuplicateDecisions(config);
+
+            int fileCandidatiAllaCancellazione = CountFilesToDelete(duplicateDecisions);
+
+            logger.WriteLine("");
+            logger.WriteLine("Duplicati trovati                : " + duplicateDecisions.Count);
+            logger.WriteLine("File candidati alla cancellazione: " + fileCandidatiAllaCancellazione);
+
+            if (config.VerboseDuplicates)
+            {
+                DuplicateBinaryReportWriter reportWriter = new DuplicateBinaryReportWriter();
+                reportWriter.Write(duplicateDecisions);
+            }
+        }
+
+        /// <summary>
+        /// Legge dal database le decisioni sui duplicati e,
+        /// dopo conferma dell'utente, cancella i file candidati.
+        /// </summary>
+        /// <param name="config">Configurazione applicativa.</param>
+        /// <param name="logger">Logger dell'applicazione.</param>
+        private static void RunCancella(AppConfig config, Logger logger)
+        {
+            List<DuplicateBinaryDecision> duplicateDecisions = LoadDuplicateDecisions(config);
+
+            int fileCandidatiAllaCancellazione = CountFilesToDelete(duplicateDecisions);
+
+            logger.WriteLine("");
+            logger.WriteLine("Duplicati trovati                : " + duplicateDecisions.Count);
+            logger.WriteLine("File candidati alla cancellazione: " + fileCandidatiAllaCancellazione);
+
+            if (config.VerboseDuplicates)
+            {
+                DuplicateBinaryReportWriter reportWriter = new DuplicateBinaryReportWriter();
+                reportWriter.Write(duplicateDecisions);
+            }
+
+            if (fileCandidatiAllaCancellazione <= 0)
+            {
+                logger.WriteLine("Nessun file da cancellare.");
+                return;
+            }
+
+            logger.WriteLine("");
+            logger.WriteLine("Procedo alla cancellazione? (S/N)");
+
+            ConsoleKeyInfo keyInfo = Console.ReadKey();
+
+            logger.WriteLine("");
+            logger.WriteLine("");
+
+            if (keyInfo.Key == ConsoleKey.S)
+            {
+                DuplicateBinaryDeletionService deletionService = new DuplicateBinaryDeletionService();
+                deletionService.DeleteFiles(duplicateDecisions, logger);
+            }
+            else
+            {
+                logger.WriteLine("Cancellazione annullata.");
+            }
+        }
+
+        /// <summary>
+        /// Legge dal database l'elenco delle decisioni relative ai duplicati binari.
+        /// </summary>
+        /// <param name="config">Configurazione applicativa.</param>
+        /// <returns>Elenco delle decisioni di deduplicazione.</returns>
+        private static List<DuplicateBinaryDecision> LoadDuplicateDecisions(AppConfig config)
+        {
+            using (DatabaseManager dbManager = new DatabaseManager(config.NomeDb, false))
+            {
+                dbManager.Initialize();
+
+                if (dbManager.Connection == null)
+                {
+                    throw new InvalidOperationException("La connessione SQLite non è disponibile dopo l'inizializzazione.");
+                }
+
+                using (FotoRepository repository = new FotoRepository(dbManager.Connection))
+                {
+                    return repository.GetBinaryDuplicateDecisions();
+                }
+            }
         }
 
         /// <summary>
@@ -184,6 +255,34 @@ namespace Foto_CreaDB2
             }
 
             return total;
+        }
+
+        /// <summary>
+        /// Mostra le istruzioni di utilizzo da riga di comando.
+        /// </summary>
+        private static void WriteUsage()
+        {
+            Console.WriteLine("Uso:");
+            Console.WriteLine(@"dotnet run -- analisi ""C:\Percorso\Foto""");
+            Console.WriteLine(@"dotnet run -- analisi ""C:\Percorso\Foto"" ""C:\Percorso\DB\foto.db""");
+            Console.WriteLine(@"dotnet run -- analisi ""C:\Percorso\Foto"" ""C:\Percorso\DB\foto.db"" --verbose");
+            Console.WriteLine("");
+            Console.WriteLine(@"dotnet run -- report ""C:\Percorso\DB\foto.db""");
+            Console.WriteLine(@"dotnet run -- report ""C:\Percorso\DB\foto.db"" --verbose");
+            Console.WriteLine("");
+            Console.WriteLine(@"dotnet run -- cancella ""C:\Percorso\DB\foto.db""");
+            Console.WriteLine(@"dotnet run -- cancella ""C:\Percorso\DB\foto.db"" --verbose");
+            Console.WriteLine("");
+            Console.WriteLine("Modalità:");
+            Console.WriteLine("- analisi  : analizza file e aggiorna il database");
+            Console.WriteLine("- report   : legge il database e mostra i duplicati candidati");
+            Console.WriteLine("- cancella : legge il database e cancella i duplicati dopo conferma");
+            Console.WriteLine("");
+            Console.WriteLine("Note:");
+            Console.WriteLine("- In 'analisi' se passi una cartella, la scansione è ricorsiva.");
+            Console.WriteLine("- In 'analisi' se passi un file, viene analizzato solo quel file.");
+            Console.WriteLine("- Il database NON viene cancellato: la scansione è incrementale.");
+            Console.WriteLine("- Con --verbose viene mostrato il dettaglio dei duplicati da tenere/eliminare.");
         }
     }
 }
