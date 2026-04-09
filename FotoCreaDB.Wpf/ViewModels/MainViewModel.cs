@@ -16,11 +16,11 @@ namespace FotoCreaDB.Wpf.ViewModels
         private readonly DuplicateDeletionService _deletionService;
         private readonly WpfServiceBridge _bridge;
 
-        private string _fotoPath = string.Empty;
+        private string _fotoPath = "E:\\siti\\2026 Foto_CreaDB\\Altro\\ImmaginiTest";
         private string _databasePath = "foto.db";
         private bool _isBusy;
         private string _statusMessage = "Pronta.";
-        private bool _verboseDuplicates;
+        private bool _verboseDuplicates = true;
         private int _lastDuplicateGroupsCount;
         private int _lastFilesToDeleteCount;
 

@@ -13,6 +13,11 @@
 
     <Border Background="{StaticResource BrushBg}" Padding="16">
         <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="550" />
+                <ColumnDefinition Width="16" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="16"/>
@@ -21,7 +26,7 @@
                 <RowDefinition Height="250"/>
             </Grid.RowDefinitions>
 
-            <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}">
+            <Border Grid.Row="0" Grid.ColumnSpan="3" Style="{StaticResource CardBorderStyle}">
                 <DockPanel LastChildFill="True">
                     <StackPanel Orientation="Vertical" DockPanel.Dock="Left">
                         <TextBlock Text="FotoCreaDB" FontSize="24" FontWeight="SemiBold" />
@@ -46,77 +51,71 @@
                 </DockPanel>
             </Border>
 
-            <Grid Grid.Row="2">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="550"/>
-                    <ColumnDefinition Width="16"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+                <Border Grid.Row="2" Grid.Column="0" Grid.RowSpan="3" Style="{StaticResource CardBorderStyle}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                    <TextBlock Text="Input e operazioni" Style="{StaticResource SectionTitleStyle}" />
 
-                <Border Grid.Column="0" Style="{StaticResource CardBorderStyle}">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel>
-                            <TextBlock Text="Input e operazioni" Style="{StaticResource SectionTitleStyle}" />
+                    <TextBlock Text="Cartella foto" Style="{StaticResource CaptionTextStyle}" />
+                    <DockPanel Margin="0,0,0,10">
+                        <Button DockPanel.Dock="Right"
+                            Width="100"
+                            Margin="10,0,0,0"
+                            Content="Sfoglia..."
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding BrowseFotoPathCommand}" />
+                        <TextBox Margin="0"
+                             Text="{Binding FotoPath, UpdateSourceTrigger=PropertyChanged}" />
+                    </DockPanel>
 
-                            <TextBlock Text="Cartella foto" Style="{StaticResource CaptionTextStyle}" />
-                            <DockPanel Margin="0,0,0,10">
-                                <Button DockPanel.Dock="Right"
-                                        Width="100"
-                                        Margin="10,0,0,0"
-                                        Content="Sfoglia..."
-                                        Style="{StaticResource SecondaryButtonStyle}"
-                                        Command="{Binding BrowseFotoPathCommand}" />
-                                <TextBox Margin="0"
-                                         Text="{Binding FotoPath, UpdateSourceTrigger=PropertyChanged}" />
-                            </DockPanel>
+                    <TextBlock Text="Database SQLite" Style="{StaticResource CaptionTextStyle}" />
+                    <DockPanel Margin="0,0,0,10">
+                        <Button DockPanel.Dock="Right"
+                            Width="100"
+                            Margin="10,0,0,0"
+                            Content="Sfoglia..."
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Command="{Binding BrowseDatabasePathCommand}" />
+                        <TextBox Margin="0"
+                             Text="{Binding DatabasePath, UpdateSourceTrigger=PropertyChanged}" />
+                    </DockPanel>
 
-                            <TextBlock Text="Database SQLite" Style="{StaticResource CaptionTextStyle}" />
-                            <DockPanel Margin="0,0,0,10">
-                                <Button DockPanel.Dock="Right"
-                                        Width="100"
-                                        Margin="10,0,0,0"
-                                        Content="Sfoglia..."
-                                        Style="{StaticResource SecondaryButtonStyle}"
-                                        Command="{Binding BrowseDatabasePathCommand}" />
-                                <TextBox Margin="0"
-                                         Text="{Binding DatabasePath, UpdateSourceTrigger=PropertyChanged}" />
-                            </DockPanel>
+                    <CheckBox Content="Mostra dettagli duplicati"
+                          IsChecked="{Binding VerboseDuplicates}" />
 
-                            <CheckBox Content="Mostra dettagli duplicati"
-                                      IsChecked="{Binding VerboseDuplicates}" />
+                    <TextBlock Text="Azioni" Style="{StaticResource CaptionTextStyle}" />
 
-                            <TextBlock Text="Azioni" Style="{StaticResource CaptionTextStyle}" />
+                    <Button Content="Avvia analisi"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding AnalyzeCommand}" />
 
-                            <Button Content="Avvia analisi"
-                                    Command="{Binding AnalyzeCommand}" />
+                    <Button Content="Genera report duplicati"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding ReportCommand}" />
 
-                            <Button Content="Genera report duplicati"
-                                    Style="{StaticResource SecondaryButtonStyle}"
-                                    Command="{Binding ReportCommand}" />
+                    <Button Content="Cancella duplicati"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding DeleteCommand}" />
 
-                            <Button Content="Cancella duplicati"
-                                    Style="{StaticResource DangerButtonStyle}"
-                                    Command="{Binding DeleteCommand}" />
+                    <Separator Margin="0,8,0,12" />
 
-                            <Separator Margin="0,8,0,12" />
+                    <TextBlock Text="Ultimo report" Style="{StaticResource SectionTitleStyle}" />
 
-                            <TextBlock Text="Ultimo report" Style="{StaticResource SectionTitleStyle}" />
+                    <TextBlock Text="Gruppi duplicati trovati" Style="{StaticResource CaptionTextStyle}" />
+                    <TextBlock Text="{Binding LastDuplicateGroupsCount}"
+                           FontSize="22"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,12" />
 
-                            <TextBlock Text="Gruppi duplicati trovati" Style="{StaticResource CaptionTextStyle}" />
-                            <TextBlock Text="{Binding LastDuplicateGroupsCount}"
-                                       FontSize="22"
-                                       FontWeight="SemiBold"
-                                       Margin="0,0,0,12" />
-
-                            <TextBlock Text="File candidati alla cancellazione" Style="{StaticResource CaptionTextStyle}" />
-                            <TextBlock Text="{Binding LastFilesToDeleteCount}"
-                                       FontSize="22"
-                                       FontWeight="SemiBold" />
-                        </StackPanel>
-                    </ScrollViewer>
+                    <TextBlock Text="File candidati alla cancellazione" Style="{StaticResource CaptionTextStyle}" />
+                    <TextBlock Text="{Binding LastFilesToDeleteCount}"
+                           FontSize="22"
+                           FontWeight="SemiBold" />
+                    </StackPanel>
+                </ScrollViewer>
                 </Border>
 
-                <Grid Grid.Column="2">
+            <Grid Grid.Row="2" Grid.Column="2">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="12"/>
@@ -152,9 +151,8 @@
                         </StackPanel>
                     </Border>
                 </Grid>
-            </Grid>
 
-            <Border Grid.Row="4" Style="{StaticResource CardBorderStyle}">
+            <Border Grid.Row="4" Grid.Column="3" Grid.ColumnSpan="3" Style="{StaticResource CardBorderStyle}">
                 <DockPanel LastChildFill="True">
                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
                         <TextBlock Text="Log operativo"
