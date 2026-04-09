@@ -31,5 +31,10 @@ namespace Foto_CreaDB2
         /// Numero totale dei file candidati alla cancellazione.
         /// </summary>
         public int FilesToDeleteCount { get; set; }
+
+        /// <summary>
+        /// Spazio totale su disco occupato dai file candidati alla cancellazione, in byte.
+        /// </summary>
+        public long FilesToDeleteSize { get; set; }
     }
 }

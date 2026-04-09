@@ -65,6 +65,7 @@ namespace Foto_CreaDB2
 
             int totalGroups = decisions != null ? decisions.Count : 0;
             int filesToDelete = CountFilesToDelete(decisions);
+            long bytesToDelete = 0;
 
             ServiceCallbackHelper.ReportProgress(
                 progress,
@@ -95,8 +96,10 @@ namespace Foto_CreaDB2
                             foreach (DuplicateBinaryCandidate dup in decision.FileDaEliminare)
                             {
                                 string dupPath = dup?.PercorsoCompleto ?? string.Empty;
-                                string dupSize = FormatBytes(dup?.Dimensione ?? 0);
+                                long dupBytes = dup?.Dimensione ?? 0;
+                                string dupSize = FormatBytes(dupBytes);
                                 ServiceCallbackHelper.Info(log, $"  Cancellare: {dupPath} ({dupSize})");
+                                bytesToDelete += dupBytes;
                             }
                         }
                     }
@@ -119,7 +122,8 @@ namespace Foto_CreaDB2
                 Message = "Report duplicati caricato.",
                 Decisions = decisions,
                 DuplicateGroupsCount = totalGroups,
-                FilesToDeleteCount = filesToDelete
+                FilesToDeleteCount = filesToDelete,
+                FilesToDeleteSize = bytesToDelete
             };
         }
 

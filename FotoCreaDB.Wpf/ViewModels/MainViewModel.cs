@@ -23,6 +23,7 @@ namespace FotoCreaDB.Wpf.ViewModels
         private bool _verboseDuplicates = true;
         private int _lastDuplicateGroupsCount;
         private int _lastFilesToDeleteCount;
+        private string _lastFilesToDeleteSizeFormatted = string.Empty;
 
         public MainViewModel()
         {
@@ -38,6 +39,30 @@ namespace FotoCreaDB.Wpf.ViewModels
 
             BrowseFotoPathCommand = new RelayCommand(_ => BrowseFotoPath(), _ => !IsBusy);
             BrowseDatabasePathCommand = new RelayCommand(_ => BrowseDatabasePath(), _ => !IsBusy);
+        }
+
+        private static string FormatBytes(long bytes)
+        {
+            const long KB = 1024;
+            const long MB = KB * 1024;
+            const long GB = MB * 1024;
+
+            if (bytes >= GB)
+            {
+                return (bytes / (double)GB).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " GB";
+            }
+
+            if (bytes >= MB)
+            {
+                return (bytes / (double)MB).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " MB";
+            }
+
+            if (bytes >= KB)
+            {
+                return (bytes / (double)KB).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " KB";
+            }
+
+            return bytes + " B";
         }
 
         public string FotoPath
@@ -98,6 +123,12 @@ namespace FotoCreaDB.Wpf.ViewModels
         {
             get => _lastFilesToDeleteCount;
             set => SetProperty(ref _lastFilesToDeleteCount, value);
+        }
+
+        public string LastFilesToDeleteSizeFormatted
+        {
+            get => _lastFilesToDeleteSizeFormatted;
+            set => SetProperty(ref _lastFilesToDeleteSizeFormatted, value);
         }
 
         public ProgressStateViewModel AnalysisState => _bridge.AnalysisState;
@@ -260,6 +291,7 @@ namespace FotoCreaDB.Wpf.ViewModels
 
                 LastDuplicateGroupsCount = result.DuplicateGroupsCount;
                 LastFilesToDeleteCount = result.FilesToDeleteCount;
+                LastFilesToDeleteSizeFormatted = FormatBytes(result.FilesToDeleteSize);
 
                 StatusMessage = "Report completato.";
                 ReportState.IsRunning = false;

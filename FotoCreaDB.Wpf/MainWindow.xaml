@@ -6,7 +6,7 @@
         mc:Ignorable="d"
         Title="FotoCreaDB"
         Height="850"
-        Width="1280"
+        Width="1450"
         MinHeight="750"
         MinWidth="1100"
         WindowStartupLocation="CenterScreen">
@@ -21,9 +21,9 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="16"/>
-                <RowDefinition Height="*"/>
+                <RowDefinition Height="420"/>
                 <RowDefinition Height="16"/>
-                <RowDefinition Height="250"/>
+                <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
             <Border Grid.Row="0" Grid.ColumnSpan="3" Style="{StaticResource CardBorderStyle}">
@@ -109,6 +109,11 @@
 
                     <TextBlock Text="File candidati alla cancellazione" Style="{StaticResource CaptionTextStyle}" />
                     <TextBlock Text="{Binding LastFilesToDeleteCount}"
+                           FontSize="22"
+                           FontWeight="SemiBold" 
+                           Margin="0,0,0,12" />
+                    <TextBlock Text="Spazio occupato dai duplicati" Style="{StaticResource CaptionTextStyle}" />
+                    <TextBlock Text="{Binding LastFilesToDeleteSizeFormatted}"
                            FontSize="22"
                            FontWeight="SemiBold" />
                     </StackPanel>
