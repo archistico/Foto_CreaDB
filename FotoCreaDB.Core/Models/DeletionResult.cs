@@ -26,8 +26,16 @@
         public int FilesDeletedCount { get; set; }
 
         /// <summary>
-        /// Numero dei record eliminati con successo dal database.
+        /// Numero totale dei record eliminati dal database.
+        /// Include sia i record dei file cancellati dal disco,
+        /// sia i record orfani bonificati.
         /// </summary>
         public int DatabaseRecordsDeletedCount { get; set; }
+
+        /// <summary>
+        /// Numero dei record orfani bonificati dal database
+        /// perché il file non era già più presente sul disco.
+        /// </summary>
+        public int OrphanRecordsDeletedCount { get; set; }
     }
 }

@@ -58,7 +58,8 @@ namespace Foto_CreaDB2
                     Message = "Nessun file da cancellare.",
                     FilesToDeleteCount = 0,
                     FilesDeletedCount = 0,
-                    DatabaseRecordsDeletedCount = 0
+                    DatabaseRecordsDeletedCount = 0,
+                    OrphanRecordsDeletedCount = 0
                 };
             }
 
@@ -67,11 +68,14 @@ namespace Foto_CreaDB2
             DuplicateBinaryDeletionService deletionService = new DuplicateBinaryDeletionService();
 
             int deletedDbRecordsCount;
+            int orphanDbRecordsDeletedCount;
+
             int deletedCount = deletionService.DeleteFiles(
                 decisions,
                 request.NomeDb,
                 null,
                 out deletedDbRecordsCount,
+                out orphanDbRecordsDeletedCount,
                 progress,
                 log);
 
@@ -83,10 +87,12 @@ namespace Foto_CreaDB2
                 Message =
                     "Cancellazione completata. "
                     + "File eliminati: " + deletedCount
-                    + " - Record DB eliminati: " + deletedDbRecordsCount + ".",
+                    + " - Record DB eliminati: " + deletedDbRecordsCount
+                    + " - Record orfani bonificati: " + orphanDbRecordsDeletedCount + ".",
                 FilesToDeleteCount = filesToDeleteCount,
                 FilesDeletedCount = deletedCount,
-                DatabaseRecordsDeletedCount = deletedDbRecordsCount
+                DatabaseRecordsDeletedCount = deletedDbRecordsCount,
+                OrphanRecordsDeletedCount = orphanDbRecordsDeletedCount
             };
         }
     }
