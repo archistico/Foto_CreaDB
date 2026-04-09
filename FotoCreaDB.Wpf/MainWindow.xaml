@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="FotoCreaDB"
-        Height="800"
+        Height="850"
         Width="1280"
         MinHeight="750"
         MinWidth="1100"
@@ -14,7 +14,7 @@
     <Border Background="{StaticResource BrushBg}" Padding="16">
         <Grid>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="550" />
+                <ColumnDefinition Width="500" />
                 <ColumnDefinition Width="16" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>

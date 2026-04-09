@@ -11,7 +11,7 @@
         <Color x:Key="ColorText">#E5E7EB</Color>
         <Color x:Key="ColorTextHover">#E5E7EB</Color>
         <Color x:Key="ColorTextSoft">#94A3B8</Color>
-        <Color x:Key="ColorAccent">#333333</Color>
+        <Color x:Key="ColorAccent">#1E293B</Color>
         <Color x:Key="ColorAccentSoft">#4B5563</Color>
 
         <SolidColorBrush x:Key="BrushBg" Color="{StaticResource ColorBg}" />
@@ -210,8 +210,8 @@
         <Style TargetType="ProgressBar">
             <Setter Property="Height" Value="14" />
             <Setter Property="Margin" Value="0,0,0,5" />
-            <Setter Property="Background" Value="#0B1220" />
-            <Setter Property="Foreground" Value="{StaticResource BrushAccent}" />
+            <Setter Property="Background" Value="{StaticResource BrushAccent}" />
+            <Setter Property="Foreground" Value="{StaticResource BrushSurfaceSoft}" />
         </Style>
 
         <Style x:Key="CardBorderStyle" TargetType="Border">
