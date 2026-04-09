@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Text;
 
 namespace Foto_CreaDB2
 {
@@ -76,7 +75,6 @@ namespace Foto_CreaDB2
                     TotalGroups = totalGroups
                 });
 
-            // Se richiesto, emetti nel log i dettagli dei gruppi e dei file candidati alla cancellazione
             if (decisions != null && decisions.Count > 0)
             {
                 ServiceCallbackHelper.Info(log, "Report duplicati: dettagli gruppi e file:");
@@ -85,12 +83,11 @@ namespace Foto_CreaDB2
                 {
                     try
                     {
-                        // Linea principale: file da tenere
                         string keepPath = decision.FileDaTenere?.PercorsoCompleto ?? string.Empty;
                         string keepSize = FormatBytes(decision.FileDaTenere?.Dimensione ?? decision.Dimensione);
-                        ServiceCallbackHelper.Info(log, $"Tenere: {keepPath} ({keepSize})");
 
-                        // File duplicati: indentazione e parola chiave "Duplicato:" per chiarezza
+                        ServiceCallbackHelper.Info(log, "Tenere (" + keepSize + "): " + keepPath);
+
                         if (decision.FileDaEliminare != null)
                         {
                             foreach (DuplicateBinaryCandidate dup in decision.FileDaEliminare)
@@ -98,14 +95,15 @@ namespace Foto_CreaDB2
                                 string dupPath = dup?.PercorsoCompleto ?? string.Empty;
                                 long dupBytes = dup?.Dimensione ?? 0;
                                 string dupSize = FormatBytes(dupBytes);
-                                ServiceCallbackHelper.Info(log, $"  Cancellare: {dupPath} ({dupSize})");
+
+                                ServiceCallbackHelper.Info(log, "    Cancellare (" + dupSize + "): " + dupPath);
                                 bytesToDelete += dupBytes;
                             }
                         }
                     }
                     catch
                     {
-                        // Non fermare il caricamento report per problemi di formattazione del log
+                        // Non interrompere il report per problemi di sola formattazione del log
                     }
                 }
             }

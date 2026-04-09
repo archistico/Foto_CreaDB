@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 using System.Text.RegularExpressions;
 using Foto_CreaDB2;
 
@@ -8,7 +7,8 @@ namespace FotoCreaDB.Wpf.ViewModels
     public class LogMessageViewModel
     {
         private static readonly Regex WindowsPathRegex =
-            new Regex(@"[A-Za-z]:\\[^<>:""/\\|?*\r\n]+(?:\\[^<>:""/\\|?*\r\n]+)*",
+            new Regex(
+                @"[A-Za-z]:\\(?:[^<>:""/\\|?*\r\n]+\\)*[^<>:""/\\|?*\r\n]+",
                 RegexOptions.Compiled);
 
         public DateTime Timestamp { get; set; }
@@ -81,30 +81,56 @@ namespace FotoCreaDB.Wpf.ViewModels
             path = string.Empty;
             suffix = string.Empty;
 
+            if (TryExtractPathAfterLastColon(text, out prefix, out path, out suffix))
+            {
+                return;
+            }
+
             Match match = WindowsPathRegex.Match(text);
             if (!match.Success)
             {
                 return;
             }
 
-            string candidate = match.Value;
+            prefix = text.Substring(0, match.Index);
+            path = match.Value;
+            suffix = text.Substring(match.Index + match.Value.Length);
+        }
 
-            int sizeSuffixIndex = text.IndexOf(" (", match.Index + match.Length, StringComparison.Ordinal);
-            if (sizeSuffixIndex > match.Index)
+        private bool TryExtractPathAfterLastColon(string text, out string prefix, out string path, out string suffix)
+        {
+            prefix = text;
+            path = string.Empty;
+            suffix = string.Empty;
+
+            int separatorIndex = text.LastIndexOf(": ", StringComparison.Ordinal);
+            if (separatorIndex < 0)
             {
-                candidate = text.Substring(match.Index, sizeSuffixIndex - match.Index);
+                return false;
             }
 
-            candidate = candidate.Trim();
-
+            string candidate = text.Substring(separatorIndex + 2).Trim();
             if (string.IsNullOrWhiteSpace(candidate))
             {
-                return;
+                return false;
             }
 
-            prefix = text.Substring(0, match.Index);
-            path = candidate;
-            suffix = text.Substring(match.Index + candidate.Length);
+            if (!WindowsPathRegex.IsMatch(candidate))
+            {
+                return false;
+            }
+
+            Match pathMatch = WindowsPathRegex.Match(candidate);
+            if (!pathMatch.Success || pathMatch.Index != 0)
+            {
+                return false;
+            }
+
+            prefix = text.Substring(0, separatorIndex + 2);
+            path = pathMatch.Value;
+            suffix = candidate.Substring(path.Length);
+
+            return true;
         }
     }
 }

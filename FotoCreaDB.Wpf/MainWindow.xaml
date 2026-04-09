@@ -34,6 +34,26 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="MiniActionButtonStyle" TargetType="Button">
+            <Setter Property="Margin" Value="6,0,0,0" />
+            <Setter Property="Padding" Value="6,1" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource BrushTextSoft}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <ContentPresenter Margin="{TemplateBinding Padding}"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border Background="{StaticResource BrushBg}" Padding="16">
@@ -241,7 +261,19 @@
 
                                     <Button Content="{Binding ClickablePath}"
                                             Style="{StaticResource PathLinkButtonStyle}"
-                                            Command="{Binding DataContext.OpenPathInExplorerCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            Command="{Binding DataContext.OpenPathCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding ClickablePath}"
+                                            Visibility="{Binding HasClickablePath, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                                    <Button Content="Apri"
+                                            Style="{StaticResource MiniActionButtonStyle}"
+                                            Command="{Binding DataContext.OpenPathCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding ClickablePath}"
+                                            Visibility="{Binding HasClickablePath, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                                    <Button Content="Mostra cartella"
+                                            Style="{StaticResource MiniActionButtonStyle}"
+                                            Command="{Binding DataContext.ShowPathInExplorerCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                             CommandParameter="{Binding ClickablePath}"
                                             Visibility="{Binding HasClickablePath, Converter={StaticResource BoolToVisibilityConverter}}" />
 

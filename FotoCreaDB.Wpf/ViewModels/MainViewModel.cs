@@ -1,12 +1,12 @@
 ﻿using FotoCreaDB.Wpf.Adapters;
 using FotoCreaDB.Wpf.Commands;
+using Foto_CreaDB2;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
-using System.Windows.Input;
 using System.Windows.Forms;
-using Foto_CreaDB2;
+using System.Windows.Input;
 
 namespace FotoCreaDB.Wpf.ViewModels
 {
@@ -40,7 +40,9 @@ namespace FotoCreaDB.Wpf.ViewModels
 
             BrowseFotoPathCommand = new RelayCommand(_ => BrowseFotoPath(), _ => !IsBusy);
             BrowseDatabasePathCommand = new RelayCommand(_ => BrowseDatabasePath(), _ => !IsBusy);
-            OpenPathInExplorerCommand = new RelayCommand(path => OpenPathInExplorer(path as string));
+
+            OpenPathCommand = new RelayCommand(path => OpenPath(path as string));
+            ShowPathInExplorerCommand = new RelayCommand(path => ShowPathInExplorer(path as string));
         }
 
         private static string FormatBytes(long bytes)
@@ -153,7 +155,9 @@ namespace FotoCreaDB.Wpf.ViewModels
 
         public ICommand BrowseDatabasePathCommand { get; }
 
-        public ICommand OpenPathInExplorerCommand { get; }
+        public ICommand OpenPathCommand { get; }
+
+        public ICommand ShowPathInExplorerCommand { get; }
 
         private bool CanRunAnalyze()
         {
@@ -230,7 +234,68 @@ namespace FotoCreaDB.Wpf.ViewModels
             }
         }
 
-        private void OpenPathInExplorer(string? path)
+        private void OpenPath(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return;
+            }
+
+            try
+            {
+                string normalizedPath = path.Trim().Trim('"');
+
+                if (File.Exists(normalizedPath))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = normalizedPath,
+                        UseShellExecute = true
+                    });
+
+                    return;
+                }
+
+                if (Directory.Exists(normalizedPath))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = normalizedPath,
+                        UseShellExecute = true
+                    });
+
+                    return;
+                }
+
+                string? parentDirectory = Path.GetDirectoryName(normalizedPath);
+                if (!string.IsNullOrWhiteSpace(parentDirectory) && Directory.Exists(parentDirectory))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = parentDirectory,
+                        UseShellExecute = true
+                    });
+
+                    return;
+                }
+
+                System.Windows.MessageBox.Show(
+                    "Il file o la cartella non esistono più:\n" + normalizedPath,
+                    "Percorso non trovato",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Information);
+            }
+            catch (System.Exception ex)
+            {
+                System.Windows.MessageBox.Show(
+                    "Errore durante l'apertura del file:\n" + ex.Message,
+                    "Errore",
+                    System.Windows.MessageBoxButton.OK,
+                    System.Windows.MessageBoxImage.Error);
+            }
+        }
+
+        private void ShowPathInExplorer(string? path)
         {
             if (string.IsNullOrWhiteSpace(path))
             {
