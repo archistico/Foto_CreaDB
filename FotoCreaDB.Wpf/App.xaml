@@ -99,7 +99,7 @@
 
         <Style TargetType="ProgressBar">
             <Setter Property="Height" Value="22" />
-            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="Margin" Value="0,0,0,5" />
             <Setter Property="Background" Value="#0B1220" />
             <Setter Property="Foreground" Value="{StaticResource BrushAccent}" />
         </Style>
