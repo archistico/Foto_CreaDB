@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Foto_CreaDB2
 {
@@ -94,21 +96,20 @@ namespace Foto_CreaDB2
                 }
 
                 // Prima di procedere con la cancellazione dei duplicati per questo gruppo,
-                // verifichiamo che il file scelto da tenere esista ancora sul disco.
-                if (decision.FileDaTenere == null || string.IsNullOrWhiteSpace(decision.FileDaTenere.PercorsoCompleto)
-                    || !File.Exists(decision.FileDaTenere.PercorsoCompleto))
+                // verifichiamo che il file scelto da tenere esista ancora sul disco
+                // e che non sia stato modificato (size/hash). Se il controllo fallisce,
+                // saltiamo l'intero gruppo.
+                if (decision.FileDaTenere == null || string.IsNullOrWhiteSpace(decision.FileDaTenere.PercorsoCompleto))
                 {
                     string missingKeep = decision.FileDaTenere?.PercorsoCompleto ?? "<vuoto>";
-                    logger?.WriteLine("FILE DA TENERE NON TROVATO, SALTO GRUPPO: " + missingKeep);
-                    ServiceCallbackHelper.Warning(log, "FILE DA TENERE NON TROVATO, salto gruppo duplicati: " + missingKeep);
+                    logger?.WriteLine("FILE DA TENERE NON VALIDATO, SALTO GRUPPO: " + missingKeep);
+                    ServiceCallbackHelper.Warning(log, "FILE DA TENERE NON VALIDATO, salto gruppo duplicati: " + missingKeep);
 
-                    // Aggiorniamo il progresso contando i file saltati per mantenere coerenza
                     if (decision.FileDaEliminare != null)
                     {
                         foreach (DuplicateBinaryCandidate skipped in decision.FileDaEliminare)
                         {
                             processedFiles++;
-
                             ServiceCallbackHelper.ReportProgress(
                                 progress,
                                 new DeletionProgress
@@ -120,7 +121,111 @@ namespace Foto_CreaDB2
                         }
                     }
 
-                    // Saltare al prossimo gruppo
+                    continue;
+                }
+
+                string keeperPath = decision.FileDaTenere.PercorsoCompleto;
+                if (!File.Exists(keeperPath))
+                {
+                    logger?.WriteLine("FILE DA TENERE NON TROVATO SUL DISCO, SALTO GRUPPO: " + keeperPath);
+                    ServiceCallbackHelper.Warning(log, "FILE DA TENERE NON TROVATO SUL DISCO, salto gruppo duplicati: " + keeperPath);
+
+                    if (decision.FileDaEliminare != null)
+                    {
+                        foreach (DuplicateBinaryCandidate skipped in decision.FileDaEliminare)
+                        {
+                            processedFiles++;
+                            ServiceCallbackHelper.ReportProgress(
+                                progress,
+                                new DeletionProgress
+                                {
+                                    ProcessedFiles = processedFiles,
+                                    TotalFiles = totalFiles,
+                                    CurrentFile = skipped?.PercorsoCompleto
+                                });
+                        }
+                    }
+
+                    continue;
+                }
+
+                // Verifica size e hash del keeper (se presenti nei dati di analisi)
+                try
+                {
+                    long currentKeeperSize = new FileInfo(keeperPath).Length;
+                    if (decision.FileDaTenere.Dimensione != 0 && decision.FileDaTenere.Dimensione != currentKeeperSize)
+                    {
+                        logger?.WriteLine($"FILE DA TENERE MODIFICATO (dimensione diversa), salto gruppo: {keeperPath}");
+                        ServiceCallbackHelper.Warning(log, "FILE DA TENERE MODIFICATO (dimensione diversa), salto gruppo: " + keeperPath);
+
+                        if (decision.FileDaEliminare != null)
+                        {
+                            foreach (DuplicateBinaryCandidate skipped in decision.FileDaEliminare)
+                            {
+                                processedFiles++;
+                                ServiceCallbackHelper.ReportProgress(
+                                    progress,
+                                    new DeletionProgress
+                                    {
+                                        ProcessedFiles = processedFiles,
+                                        TotalFiles = totalFiles,
+                                        CurrentFile = skipped?.PercorsoCompleto
+                                    });
+                            }
+                        }
+
+                        continue;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(decision.FileDaTenere.HashSha256))
+                    {
+                        string currentKeeperHash = ComputeSha256Hex(keeperPath);
+                        if (!string.Equals(currentKeeperHash, decision.FileDaTenere.HashSha256, System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            logger?.WriteLine($"FILE DA TENERE MODIFICATO (hash diverso), salto gruppo: {keeperPath}");
+                            ServiceCallbackHelper.Warning(log, "FILE DA TENERE MODIFICATO (hash diverso), salto gruppo: " + keeperPath);
+
+                            if (decision.FileDaEliminare != null)
+                            {
+                                foreach (DuplicateBinaryCandidate skipped in decision.FileDaEliminare)
+                                {
+                                    processedFiles++;
+                                    ServiceCallbackHelper.ReportProgress(
+                                        progress,
+                                        new DeletionProgress
+                                        {
+                                            ProcessedFiles = processedFiles,
+                                            TotalFiles = totalFiles,
+                                            CurrentFile = skipped?.PercorsoCompleto
+                                        });
+                                }
+                            }
+
+                            continue;
+                        }
+                    }
+                }
+                catch (Exception exKeeper)
+                {
+                    logger?.WriteError($"Errore durante la verifica del file da tenere '{keeperPath}'", exKeeper);
+                    ServiceCallbackHelper.Error(log, $"Errore durante la verifica del file da tenere '{keeperPath}'", exKeeper);
+
+                    if (decision.FileDaEliminare != null)
+                    {
+                        foreach (DuplicateBinaryCandidate skipped in decision.FileDaEliminare)
+                        {
+                            processedFiles++;
+                            ServiceCallbackHelper.ReportProgress(
+                                progress,
+                                new DeletionProgress
+                                {
+                                    ProcessedFiles = processedFiles,
+                                    TotalFiles = totalFiles,
+                                    CurrentFile = skipped?.PercorsoCompleto
+                                });
+                        }
+                    }
+
                     continue;
                 }
 
@@ -135,6 +240,26 @@ namespace Foto_CreaDB2
                     {
                         if (File.Exists(item.PercorsoCompleto))
                         {
+                            // Prima di cancellare il candidato, verifichiamo che non sia stato modificato
+                            long currentItemSize = new FileInfo(item.PercorsoCompleto).Length;
+                            if (item.Dimensione != 0 && item.Dimensione != currentItemSize)
+                            {
+                                logger?.WriteLine($"CANDIDATO MODIFICATO (dimensione diversa), salto file: {item.PercorsoCompleto}");
+                                ServiceCallbackHelper.Warning(log, "CANDIDATO MODIFICATO (dimensione diversa), salto file: " + item.PercorsoCompleto);
+                                continue;
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(item.HashSha256))
+                            {
+                                string currentItemHash = ComputeSha256Hex(item.PercorsoCompleto);
+                                if (!string.Equals(currentItemHash, item.HashSha256, System.StringComparison.OrdinalIgnoreCase))
+                                {
+                                    logger?.WriteLine($"CANDIDATO MODIFICATO (hash diverso), salto file: {item.PercorsoCompleto}");
+                                    ServiceCallbackHelper.Warning(log, "CANDIDATO MODIFICATO (hash diverso), salto file: " + item.PercorsoCompleto);
+                                    continue;
+                                }
+                            }
+
                             File.Delete(item.PercorsoCompleto);
                             deletedCount++;
 
@@ -237,6 +362,27 @@ namespace Foto_CreaDB2
             }
 
             return total;
+        }
+
+        private static string ComputeSha256Hex(string filename)
+        {
+            if (string.IsNullOrWhiteSpace(filename) || !File.Exists(filename))
+            {
+                return string.Empty;
+            }
+
+            using (FileStream stream = File.OpenRead(filename))
+            using (SHA256 sha = SHA256.Create())
+            {
+                byte[] hash = sha.ComputeHash(stream);
+                StringBuilder sb = new StringBuilder(hash.Length * 2);
+                foreach (byte b in hash)
+                {
+                    sb.Append(b.ToString("x2"));
+                }
+
+                return sb.ToString();
+            }
         }
     }
 }
