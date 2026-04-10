@@ -93,6 +93,37 @@ namespace Foto_CreaDB2
                     continue;
                 }
 
+                // Prima di procedere con la cancellazione dei duplicati per questo gruppo,
+                // verifichiamo che il file scelto da tenere esista ancora sul disco.
+                if (decision.FileDaTenere == null || string.IsNullOrWhiteSpace(decision.FileDaTenere.PercorsoCompleto)
+                    || !File.Exists(decision.FileDaTenere.PercorsoCompleto))
+                {
+                    string missingKeep = decision.FileDaTenere?.PercorsoCompleto ?? "<vuoto>";
+                    logger?.WriteLine("FILE DA TENERE NON TROVATO, SALTO GRUPPO: " + missingKeep);
+                    ServiceCallbackHelper.Warning(log, "FILE DA TENERE NON TROVATO, salto gruppo duplicati: " + missingKeep);
+
+                    // Aggiorniamo il progresso contando i file saltati per mantenere coerenza
+                    if (decision.FileDaEliminare != null)
+                    {
+                        foreach (DuplicateBinaryCandidate skipped in decision.FileDaEliminare)
+                        {
+                            processedFiles++;
+
+                            ServiceCallbackHelper.ReportProgress(
+                                progress,
+                                new DeletionProgress
+                                {
+                                    ProcessedFiles = processedFiles,
+                                    TotalFiles = totalFiles,
+                                    CurrentFile = skipped?.PercorsoCompleto
+                                });
+                        }
+                    }
+
+                    // Saltare al prossimo gruppo
+                    continue;
+                }
+
                 foreach (DuplicateBinaryCandidate item in decision.FileDaEliminare)
                 {
                     if (item == null || string.IsNullOrWhiteSpace(item.PercorsoCompleto))
