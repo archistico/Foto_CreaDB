@@ -54,8 +54,9 @@ namespace Foto_CreaDB2
             {
                 "jpg", "jpeg", "dcr", "dng", "crw",
                 "gif", "png", "ico", "raw", "arw", "cr2",
-                "avi", "wmv", "wav", "mp4", "mp3", "mov",
-                "bmp", "psd", "3gp", "webp", "heic", "heif", "tiff", "tif"
+                "avi", "wmv", "wma", "wav", "mp4", "mp3", "mov",
+                "bmp", "psd", "3gp", "webp", "heic", "heif", "tiff", "tif",
+                "doc", "docx", "xls", "xlsx", "ppt", "pptx", "pdf",
             };
     }
 }
