@@ -81,18 +81,27 @@ namespace Foto_CreaDB2
         /// <returns>Configurazione pronta all'uso.</returns>
         private static AppConfig BuildConfig(CommandLineOptions options)
         {
-            return new AppConfig
+            // Carica configurazione da file JSON (se presente) e poi applica override dalle opzioni CLI
+            AppConfig baseConfig = AppConfigLoader.LoadFromFile("appsettings.json") ?? new AppConfig();
+
+            // Override con opzioni da linea di comando se fornite
+            if (!string.IsNullOrWhiteSpace(options.PathInput))
             {
-                Paths = string.IsNullOrWhiteSpace(options.PathInput)
-                    ? new string[0]
-                    : new string[] { options.PathInput },
-                NomeDb = options.NomeDb,
-                CancellaDbSeEsiste = false,
-                LogDettagliato = false,
-                ProgressEvery = 1000,
-                VerboseDuplicates = options.VerboseDuplicates,
-                Action = options.Action
-            };
+                baseConfig.Paths = new string[] { options.PathInput };
+            }
+
+            if (!string.IsNullOrWhiteSpace(options.NomeDb))
+            {
+                baseConfig.NomeDb = options.NomeDb;
+            }
+
+            baseConfig.CancellaDbSeEsiste = false;
+            // LogDettagliato / ProgressEvery possono essere letti dal file di configurazione;
+            // non sono esposti come opzioni CLI in questo parser.
+            baseConfig.VerboseDuplicates = options.VerboseDuplicates;
+            baseConfig.Action = options.Action;
+
+            return baseConfig;
         }
 
         /// <summary>
