@@ -25,9 +25,6 @@ namespace Foto_CreaDB2
             }
 
             ScanStatistics stats = new ScanStatistics();
-            MetadataService metadataService = new MetadataService();
-            HashService hashService = new HashService();
-
             AppConfig config = new AppConfig
             {
                 Paths = request.Paths,
@@ -37,6 +34,9 @@ namespace Foto_CreaDB2
                 ProgressEvery = request.ProgressEvery,
                 VerboseDuplicates = request.VerboseDuplicates
             };
+
+            MetadataService metadataService = new MetadataService(config);
+            HashService hashService = new HashService();
 
             ServiceCallbackHelper.Info(log, "Avvio analisi.");
 

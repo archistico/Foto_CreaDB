@@ -58,5 +58,19 @@ namespace Foto_CreaDB2
                 "bmp", "psd", "3gp", "webp", "heic", "heif", "tiff", "tif",
                 "doc", "docx", "xls", "xlsx", "ppt", "pptx", "pdf",
             };
+
+        /// <summary>
+        /// Elenco delle estensioni considerate immagini (per le quali provare a leggere i metadati).
+        /// È configurabile e separato dalle `EstensioniPermesse` che definiscono i file processabili.
+        /// </summary>
+        public HashSet<string> ImageExtensions { get; set; } =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "png", "jpg", "jpeg", "gif", "bmp", "psd", "tif", "tiff",
+                "webp", "heic", "heif",
+                // RAW formats
+                "raw", "arw", "cr2", "crw", "nef", "nrw", "orf", "raf", "rw2",
+                "rwl", "sr2", "dng", "pef", "kdc", "erf", "srf", "mef", "mrw"
+            };
     }
 }

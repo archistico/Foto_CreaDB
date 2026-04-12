@@ -28,12 +28,35 @@ namespace Foto_CreaDB2
         /// <returns>
         /// <c>true</c> se è stato trovato almeno un metadato utile; altrimenti <c>false</c>.
         /// </returns>
+        private readonly AppConfig _config;
+
+        public MetadataService()
+        {
+            _config = new AppConfig();
+        }
+
+        public MetadataService(AppConfig config)
+        {
+            _config = config ?? new AppConfig();
+        }
+
         public bool TryPopulateMetadata(string imagePath, Foto foto, Logger logger, ScanStatistics stats)
         {
             bool trovatoAlmenoUnMetadato = false;
 
             try
             {
+                // Solo tentare la lettura dei metadati per estensioni immagini conosciute
+                // (evitiamo eccezioni su file multimediali non immagini, es. .wmv)
+                string ext = System.IO.Path.GetExtension(imagePath) ?? string.Empty;
+                ext = ext.TrimStart('.').ToLowerInvariant();
+
+                if (_config == null || _config.ImageExtensions == null || !_config.ImageExtensions.Contains(ext))
+                {
+                    // Non è un'immagine gestita: non tentare di leggere i metadati
+                    foto.metadatiPresenti = false;
+                    return false;
+                }
                 IEnumerable<MetadataExtractor.Directory> directories = ImageMetadataReader.ReadMetadata(imagePath);
 
                 string? tagImageWidth = MetadataLookup.FindFirstDescription(
@@ -184,7 +207,7 @@ namespace Foto_CreaDB2
                 stats.TotaleErroriMetadati++;
                 foto.metadatiPresenti = false;
                 foto.noteErrore = Utility.Truncate("Metadati non leggibili: " + ex.Message, 1000);
-                logger.WriteError($"Metadati non leggibili per il file '{imagePath}'", ex);
+                logger?.WriteError($"Metadati non leggibili per il file '{imagePath}'", ex);
                 return false;
             }
             catch (Exception ex)
@@ -192,7 +215,7 @@ namespace Foto_CreaDB2
                 stats.TotaleErroriMetadati++;
                 foto.metadatiPresenti = false;
                 foto.noteErrore = Utility.Truncate("Errore metadati: " + ex.Message, 1000);
-                logger.WriteError($"Errore durante la lettura dei metadati del file '{imagePath}'", ex);
+                logger?.WriteError($"Errore durante la lettura dei metadati del file '{imagePath}'", ex);
                 return false;
             }
         }
