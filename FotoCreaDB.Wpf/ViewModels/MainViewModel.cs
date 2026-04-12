@@ -43,6 +43,66 @@ namespace FotoCreaDB.Wpf.ViewModels
 
             OpenPathCommand = new RelayCommand(path => OpenPath(path as string));
             ShowPathInExplorerCommand = new RelayCommand(path => ShowPathInExplorer(path as string));
+
+            // Carica preferenze salvate da appsettings.json (se presenti).
+            try
+            {
+                string baseConfigPath = Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
+                string currentConfigPath = Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json");
+
+                AppConfig? cfg = AppConfigLoader.LoadFromFile(baseConfigPath) ?? AppConfigLoader.LoadFromFile(currentConfigPath);
+
+                if (cfg != null)
+                {
+                    if (cfg.Paths != null && cfg.Paths.Length > 0 && !string.IsNullOrWhiteSpace(cfg.Paths[0]))
+                    {
+                        string loadedFoto = cfg.Paths[0];
+                        // normalize to absolute
+                        try
+                        {
+                            FotoPath = Path.GetFullPath(loadedFoto);
+                        }
+                        catch
+                        {
+                            FotoPath = loadedFoto;
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(cfg.NomeDb))
+                    {
+                        string dbPath = cfg.NomeDb;
+                        try
+                        {
+                            DatabasePath = Path.GetFullPath(dbPath);
+                        }
+                        catch
+                        {
+                            DatabasePath = dbPath;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // ignore loading errors
+            }
+        }
+
+        /// <summary>
+        /// Salva le preferenze correnti (cartella foto e database) in `appsettings.json`
+        /// nella cartella di lavoro corrente.
+        /// </summary>
+        public void SavePreferences()
+        {
+            try
+            {
+                string configPath = Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json");
+                PreferencesSaver.SavePreferences(FotoPath, DatabasePath, configPath);
+            }
+            catch
+            {
+                // non fare nulla se il salvataggio fallisce
+            }
         }
 
         private static string FormatBytes(long bytes)
@@ -384,6 +444,9 @@ namespace FotoCreaDB.Wpf.ViewModels
 
                 StatusMessage = result.Message;
                 AnalysisState.IsRunning = false;
+
+                // salva preferenze (cartella foto e database) su appsettings.json
+                SavePreferences();
             }
             catch (System.Exception ex)
             {
@@ -428,6 +491,9 @@ namespace FotoCreaDB.Wpf.ViewModels
 
                 StatusMessage = "Report completato.";
                 ReportState.IsRunning = false;
+
+                // salva preferenze
+                SavePreferences();
             }
             catch (System.Exception ex)
             {
@@ -479,6 +545,9 @@ namespace FotoCreaDB.Wpf.ViewModels
 
                 StatusMessage = result.Message;
                 DeletionState.IsRunning = false;
+
+                // salva preferenze
+                SavePreferences();
             }
             catch (System.Exception ex)
             {

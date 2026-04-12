@@ -67,6 +67,37 @@ namespace Foto_CreaDB2
             }
         }
 
+        /// <summary>
+        /// Salva la configurazione su file JSON.
+        /// Sovrascrive il file esistente.
+        /// </summary>
+        public static bool SaveToFile(AppConfig cfg, string path)
+        {
+            try
+            {
+                if (cfg == null) return false;
+
+                string dir = System.IO.Path.GetDirectoryName(path) ?? string.Empty;
+                if (!string.IsNullOrWhiteSpace(dir) && !System.IO.Directory.Exists(dir))
+                {
+                    System.IO.Directory.CreateDirectory(dir);
+                }
+
+                var opts = new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                };
+
+                string json = JsonSerializer.Serialize(cfg, opts);
+                System.IO.File.WriteAllText(path, json);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private static System.Collections.Generic.HashSet<string> NormalizeSet(System.Collections.Generic.HashSet<string> input)
         {
             var result = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
