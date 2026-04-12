@@ -194,7 +194,7 @@ namespace FotoCreaDB.Tests.Unit.Services
             List<DuplicateBinaryDecision> result = service.BuildDecisions(files);
 
             Assert.Single(result);
-            Assert.Equal(1, result[0].FileDaEliminare.Count);
+            Assert.Single(result[0].FileDaEliminare);
         }
 
         private static DuplicateBinaryCandidate CreateCandidate(

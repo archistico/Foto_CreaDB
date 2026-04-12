@@ -19,7 +19,7 @@ namespace Foto_CreaDB2
         public DuplicateReportResult Run(
             DuplicateReportRequest request,
             IProgress<DuplicateReportProgress> progress = null,
-            Action<ServiceLogMessage> log = null)
+            Action<ServiceLogMessage>? log = null)
         {
             if (request == null)
             {

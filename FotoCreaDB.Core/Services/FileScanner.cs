@@ -14,7 +14,7 @@ namespace Foto_CreaDB2
         private readonly FotoRepository _repository;
         private readonly MetadataService _metadataService;
         private readonly HashService _hashService;
-        private readonly Logger _logger;
+        private readonly Logger? _logger;
         private readonly ScanStatistics _stats;
         private readonly string _currentScanToken;
         private readonly IProgress<AnalysisProgress> _progress;
@@ -56,7 +56,7 @@ namespace Foto_CreaDB2
             FotoRepository repository,
             MetadataService metadataService,
             HashService hashService,
-            Logger logger,
+            Logger? logger,
             ScanStatistics stats,
             IProgress<AnalysisProgress> progress = null,
             Action<ServiceLogMessage> log = null)
@@ -422,7 +422,7 @@ namespace Foto_CreaDB2
         /// <param name="currentFile">
         /// File attualmente elaborato.
         /// </param>
-        private void ReportProgress(string currentFile)
+        private void ReportProgress(string? currentFile)
         {
             ServiceCallbackHelper.ReportProgress(
                 _progress,
@@ -430,7 +430,7 @@ namespace Foto_CreaDB2
                 {
                     ProcessedFiles = _processedFiles,
                     TotalFiles = _totalFilesToProcess,
-                    CurrentFile = currentFile
+                    CurrentFile = currentFile ?? string.Empty
                 });
         }
 

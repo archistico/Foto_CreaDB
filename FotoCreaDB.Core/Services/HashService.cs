@@ -30,7 +30,7 @@ namespace Foto_CreaDB2
         /// <returns>
         /// <c>true</c> se l'hash è stato calcolato correttamente; altrimenti <c>false</c>.
         /// </returns>
-        public bool TryCalculateHash(string imagePath, Foto foto, Logger logger, ScanStatistics stats)
+        public bool TryCalculateHash(string imagePath, Foto foto, Logger? logger, ScanStatistics stats)
         {
             try
             {
@@ -42,7 +42,7 @@ namespace Foto_CreaDB2
                 stats.TotaleErroriHash++;
                 foto.hashSha256 = "";
                 foto.noteErrore = Utility.AppendNote(foto.noteErrore, "Errore hash: " + ex.Message, 1000);
-                logger.WriteError($"Errore durante il calcolo hash del file '{imagePath}'", ex);
+                logger?.WriteError($"Errore durante il calcolo hash del file '{imagePath}'", ex);
                 return false;
             }
         }

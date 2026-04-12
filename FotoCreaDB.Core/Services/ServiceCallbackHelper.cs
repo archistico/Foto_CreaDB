@@ -12,7 +12,7 @@ namespace Foto_CreaDB2
         /// </summary>
         /// <param name="log">Callback di log.</param>
         /// <param name="message">Messaggio da inviare.</param>
-        public static void Info(Action<ServiceLogMessage> log, string message)
+        public static void Info(Action<ServiceLogMessage>? log, string message)
         {
             Write(log, ServiceLogLevel.Info, message, null);
         }
@@ -22,7 +22,7 @@ namespace Foto_CreaDB2
         /// </summary>
         /// <param name="log">Callback di log.</param>
         /// <param name="message">Messaggio da inviare.</param>
-        public static void Warning(Action<ServiceLogMessage> log, string message)
+        public static void Warning(Action<ServiceLogMessage>? log, string message)
         {
             Write(log, ServiceLogLevel.Warning, message, null);
         }
@@ -33,7 +33,7 @@ namespace Foto_CreaDB2
         /// <param name="log">Callback di log.</param>
         /// <param name="message">Messaggio da inviare.</param>
         /// <param name="ex">Eccezione associata.</param>
-        public static void Error(Action<ServiceLogMessage> log, string message, Exception ex = null)
+        public static void Error(Action<ServiceLogMessage>? log, string message, Exception? ex = null)
         {
             Write(log, ServiceLogLevel.Error, message, ex);
         }
@@ -59,7 +59,7 @@ namespace Foto_CreaDB2
         /// <param name="level">Livello del messaggio.</param>
         /// <param name="message">Testo del messaggio.</param>
         /// <param name="ex">Eccezione associata.</param>
-        private static void Write(Action<ServiceLogMessage> log, ServiceLogLevel level, string message, Exception ex)
+        private static void Write(Action<ServiceLogMessage>? log, ServiceLogLevel level, string message, Exception? ex)
         {
             if (log == null)
             {

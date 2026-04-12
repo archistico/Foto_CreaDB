@@ -22,7 +22,7 @@ namespace Foto_CreaDB2
         /// Una lista di decisioni, ognuna composta da un file da tenere
         /// e dagli eventuali file duplicati da eliminare.
         /// </returns>
-        public List<DuplicateBinaryDecision> BuildDecisions(List<DuplicateBinaryCandidate> allFiles)
+        public List<DuplicateBinaryDecision> BuildDecisions(List<DuplicateBinaryCandidate>? allFiles)
         {
             if (allFiles == null)
             {

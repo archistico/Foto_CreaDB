@@ -135,6 +135,12 @@
                                     Content="Sfoglia..."
                                     Style="{StaticResource SecondaryButtonStyle}"
                                     Command="{Binding BrowseDatabasePathCommand}" />
+                        <Button DockPanel.Dock="Right"
+                                Width="170"
+                                Margin="10,0,0,0"
+                                Content="Cancella analisi precedenti"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Command="{Binding DeleteAnalysisDatabaseCommand}" />
                             <TextBox Margin="0"
                                      Text="{Binding DatabasePath, UpdateSourceTrigger=PropertyChanged}" />
                         </DockPanel>

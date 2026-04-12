@@ -40,7 +40,7 @@ namespace Foto_CreaDB2
             _config = config ?? new AppConfig();
         }
 
-        public bool TryPopulateMetadata(string imagePath, Foto foto, Logger logger, ScanStatistics stats)
+        public bool TryPopulateMetadata(string imagePath, Foto foto, Logger? logger, ScanStatistics stats)
         {
             bool trovatoAlmenoUnMetadato = false;
 

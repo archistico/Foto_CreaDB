@@ -45,11 +45,11 @@ namespace Foto_CreaDB2
         public int DeleteFiles(
             List<DuplicateBinaryDecision> decisions,
             string nomeDb,
-            Logger logger,
+            Logger? logger,
             out int deletedDbRecordsCount,
             out int orphanDbRecordsDeletedCount,
             IProgress<DeletionProgress> progress = null,
-            Action<ServiceLogMessage> log = null)
+            Action<ServiceLogMessage>? log = null)
         {
             deletedDbRecordsCount = 0;
             orphanDbRecordsDeletedCount = 0;
@@ -62,7 +62,7 @@ namespace Foto_CreaDB2
                     {
                         ProcessedFiles = 0,
                         TotalFiles = 0,
-                        CurrentFile = null
+                        CurrentFile = string.Empty
                     });
 
                 return 0;
@@ -85,7 +85,7 @@ namespace Foto_CreaDB2
                 {
                     ProcessedFiles = 0,
                     TotalFiles = totalFiles,
-                    CurrentFile = null
+                    CurrentFile = string.Empty
                 });
 
             foreach (DuplicateBinaryDecision decision in decisions)
@@ -116,7 +116,7 @@ namespace Foto_CreaDB2
                                 {
                                     ProcessedFiles = processedFiles,
                                     TotalFiles = totalFiles,
-                                    CurrentFile = skipped?.PercorsoCompleto
+                                     CurrentFile = skipped?.PercorsoCompleto ?? string.Empty
                                 });
                         }
                     }
@@ -137,12 +137,12 @@ namespace Foto_CreaDB2
                             processedFiles++;
                             ServiceCallbackHelper.ReportProgress(
                                 progress,
-                                new DeletionProgress
-                                {
-                                    ProcessedFiles = processedFiles,
-                                    TotalFiles = totalFiles,
-                                    CurrentFile = skipped?.PercorsoCompleto
-                                });
+                                    new DeletionProgress
+                                    {
+                                        ProcessedFiles = processedFiles,
+                                        TotalFiles = totalFiles,
+                                        CurrentFile = skipped?.PercorsoCompleto ?? string.Empty
+                                    });
                         }
                     }
 
@@ -169,7 +169,7 @@ namespace Foto_CreaDB2
                                     {
                                         ProcessedFiles = processedFiles,
                                         TotalFiles = totalFiles,
-                                        CurrentFile = skipped?.PercorsoCompleto
+                                        CurrentFile = skipped?.PercorsoCompleto ?? string.Empty
                                     });
                             }
                         }
@@ -196,7 +196,7 @@ namespace Foto_CreaDB2
                                         {
                                             ProcessedFiles = processedFiles,
                                             TotalFiles = totalFiles,
-                                            CurrentFile = skipped?.PercorsoCompleto
+                                            CurrentFile = skipped?.PercorsoCompleto ?? string.Empty
                                         });
                                 }
                             }
@@ -217,12 +217,12 @@ namespace Foto_CreaDB2
                             processedFiles++;
                             ServiceCallbackHelper.ReportProgress(
                                 progress,
-                                new DeletionProgress
-                                {
-                                    ProcessedFiles = processedFiles,
-                                    TotalFiles = totalFiles,
-                                    CurrentFile = skipped?.PercorsoCompleto
-                                });
+                                        new DeletionProgress
+                                        {
+                                            ProcessedFiles = processedFiles,
+                                            TotalFiles = totalFiles,
+                                            CurrentFile = skipped?.PercorsoCompleto ?? string.Empty
+                                        });
                         }
                     }
 

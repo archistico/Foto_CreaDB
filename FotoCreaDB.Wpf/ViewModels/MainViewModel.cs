@@ -43,6 +43,7 @@ namespace FotoCreaDB.Wpf.ViewModels
 
             OpenPathCommand = new RelayCommand(path => OpenPath(path as string));
             ShowPathInExplorerCommand = new RelayCommand(path => ShowPathInExplorer(path as string));
+            DeleteAnalysisDatabaseCommand = new RelayCommand(_ => DeleteAnalysisDatabase(), _ => CanDeleteDatabase());
 
             // Carica preferenze salvate da appsettings.json (se presenti).
             try
@@ -220,6 +221,60 @@ namespace FotoCreaDB.Wpf.ViewModels
             set => SetProperty(ref _lastFilesToDeleteSizeFormatted, value);
         }
 
+        private bool CanDeleteDatabase()
+        {
+            return !IsBusy && !string.IsNullOrWhiteSpace(DatabasePath);
+        }
+
+        private void DeleteAnalysisDatabase()
+        {
+            if (string.IsNullOrWhiteSpace(DatabasePath))
+            {
+                return;
+            }
+
+            var result = System.Windows.MessageBox.Show(
+                "Vuoi cancellare il database di analisi indicato?\n" + DatabasePath,
+                "Conferma cancellazione database",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Warning);
+
+            if (result != System.Windows.MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            try
+            {
+                string full = DatabasePath;
+                try
+                {
+                    full = Path.GetFullPath(DatabasePath);
+                }
+                catch
+                {
+                }
+
+                bool deleted = DatabaseFileManager.DeleteDatabaseFiles(full, _bridge.OnLog);
+                if (deleted)
+                {
+                    StatusMessage = "Database cancellato.";
+                }
+                else
+                {
+                    StatusMessage = "Database non trovato.";
+                }
+
+                // update commands
+                CommandManager.InvalidateRequerySuggested();
+            }
+            catch (System.Exception ex)
+            {
+                ServiceCallbackHelper.Error(_bridge.OnLog, "Errore durante la cancellazione del database.", ex);
+                StatusMessage = "Errore durante la cancellazione del database.";
+            }
+        }
+
         public ProgressStateViewModel AnalysisState => _bridge.AnalysisState;
 
         public ProgressStateViewModel ReportState => _bridge.ReportState;
@@ -239,6 +294,7 @@ namespace FotoCreaDB.Wpf.ViewModels
         public ICommand BrowseFotoPathCommand { get; }
 
         public ICommand BrowseDatabasePathCommand { get; }
+        public ICommand DeleteAnalysisDatabaseCommand { get; }
 
         public ICommand OpenPathCommand { get; }
 

@@ -77,8 +77,8 @@ namespace FotoCreaDB.Tests.Unit.Configuration
                 string extAllowed = Path.GetExtension(fileAllowed).TrimStart('.').ToLowerInvariant();
                 string extExcluded = Path.GetExtension(fileExcluded).TrimStart('.').ToLowerInvariant();
 
-                Assert.True(cfg.EstensioniPermesse.Contains(extAllowed));
-                Assert.False(cfg.EstensioniPermesse.Contains(extExcluded));
+                Assert.Contains(extAllowed, cfg.EstensioniPermesse);
+                Assert.DoesNotContain(extExcluded, cfg.EstensioniPermesse);
             }
             finally
             {

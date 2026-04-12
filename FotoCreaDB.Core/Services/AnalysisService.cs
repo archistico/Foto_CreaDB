@@ -17,7 +17,7 @@ namespace Foto_CreaDB2
         public AnalysisResult Run(
             AnalysisRequest request,
             IProgress<AnalysisProgress> progress = null,
-            Action<ServiceLogMessage> log = null)
+            Action<ServiceLogMessage>? log = null)
         {
             if (request == null)
             {
