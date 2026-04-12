@@ -80,6 +80,31 @@ namespace FotoCreaDB.Wpf.ViewModels
                             DatabasePath = dbPath;
                         }
                     }
+                    // Loggare le estensioni permesse e le estensioni immagine per metadati
+                    try
+                    {
+                        string allowed = cfg.EstensioniPermesse != null
+                            ? string.Join(", ", cfg.EstensioniPermesse)
+                            : string.Empty;
+
+                        string imageExt = cfg.ImageExtensions != null
+                            ? string.Join(", ", cfg.ImageExtensions)
+                            : string.Empty;
+
+                        if (!string.IsNullOrWhiteSpace(allowed))
+                        {
+                            ServiceCallbackHelper.Info(_bridge.OnLog, "Estensioni processabili: " + allowed);
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(imageExt))
+                        {
+                            ServiceCallbackHelper.Info(_bridge.OnLog, "Estensioni immagini (metadati): " + imageExt);
+                        }
+                    }
+                    catch
+                    {
+                        // ignorare problemi di log
+                    }
                 }
             }
             catch
