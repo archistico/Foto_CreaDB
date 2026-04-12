@@ -25,15 +25,18 @@ namespace Foto_CreaDB2
             }
 
             ScanStatistics stats = new ScanStatistics();
-            AppConfig config = new AppConfig
-            {
-                Paths = request.Paths,
-                NomeDb = request.NomeDb,
-                CancellaDbSeEsiste = request.CancellaDbSeEsiste,
-                LogDettagliato = request.LogDettagliato,
-                ProgressEvery = request.ProgressEvery,
-                VerboseDuplicates = request.VerboseDuplicates
-            };
+
+            // Provare a caricare configurazione da file appsettings.json nella directory corrente
+            AppConfig fileConfig = AppConfigLoader.LoadFromFile("appsettings.json");
+
+            // Costruisci la config finale partendo dal file (se presente) e applicando gli override dalla request
+            AppConfig config = fileConfig ?? new AppConfig();
+            config.Paths = request.Paths;
+            config.NomeDb = string.IsNullOrWhiteSpace(request.NomeDb) ? config.NomeDb : request.NomeDb;
+            config.CancellaDbSeEsiste = request.CancellaDbSeEsiste;
+            config.LogDettagliato = request.LogDettagliato;
+            config.ProgressEvery = request.ProgressEvery > 0 ? request.ProgressEvery : config.ProgressEvery;
+            config.VerboseDuplicates = request.VerboseDuplicates;
 
             MetadataService metadataService = new MetadataService(config);
             HashService hashService = new HashService();
