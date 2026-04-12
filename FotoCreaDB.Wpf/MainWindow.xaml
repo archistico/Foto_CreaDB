@@ -136,9 +136,9 @@
                                     Style="{StaticResource SecondaryButtonStyle}"
                                     Command="{Binding BrowseDatabasePathCommand}" />
                         <Button DockPanel.Dock="Right"
-                                Width="170"
+                                Width="75"
                                 Margin="10,0,0,0"
-                                Content="Cancella analisi precedenti"
+                                Content="Resetta"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Command="{Binding DeleteAnalysisDatabaseCommand}" />
                             <TextBox Margin="0"
