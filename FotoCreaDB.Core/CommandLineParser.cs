@@ -13,7 +13,7 @@ namespace Foto_CreaDB2
         /// </summary>
         /// <param name="args">Argomenti da riga di comando.</param>
         /// <returns>Opzioni interpretate.</returns>
-        public static CommandLineOptions Parse(string[] args)
+        public static CommandLineOptions? Parse(string[]? args)
         {
             if (args == null || args.Length == 0 || string.IsNullOrWhiteSpace(args[0]))
             {

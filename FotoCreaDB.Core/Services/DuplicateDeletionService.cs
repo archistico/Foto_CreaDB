@@ -17,7 +17,7 @@ namespace Foto_CreaDB2
         /// <returns>Esito della cancellazione.</returns>
         public DeletionResult Run(
             DeletionRequest request,
-            IProgress<DeletionProgress> progress = null,
+            IProgress<DeletionProgress>? progress = null,
             Action<ServiceLogMessage>? log = null)
         {
             if (request == null)

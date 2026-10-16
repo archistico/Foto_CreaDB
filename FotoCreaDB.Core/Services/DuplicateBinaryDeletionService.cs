@@ -15,7 +15,7 @@ namespace Foto_CreaDB2
             Logger? logger,
             out int deletedDbRecordsCount,
             out int orphanDbRecordsDeletedCount,
-            IProgress<DeletionProgress> progress = null,
+            IProgress<DeletionProgress>? progress = null,
             Action<ServiceLogMessage>? log = null)
         {
             deletedDbRecordsCount = 0;

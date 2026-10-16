@@ -13,7 +13,7 @@
         /// <summary>
         /// Eventuale messaggio finale.
         /// </summary>
-        public string Message { get; set; }
+        public string Message { get; set; } = string.Empty;
 
         /// <summary>
         /// Numero totale dei file candidati alla cancellazione.

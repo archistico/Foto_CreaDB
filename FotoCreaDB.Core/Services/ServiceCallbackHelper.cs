@@ -44,7 +44,7 @@ namespace Foto_CreaDB2
         /// <typeparam name="T">Tipo del payload di progressione.</typeparam>
         /// <param name="progress">Callback di progressione.</param>
         /// <param name="value">Valore di avanzamento da inviare.</param>
-        public static void ReportProgress<T>(IProgress<T> progress, T value)
+        public static void ReportProgress<T>(IProgress<T>? progress, T value)
         {
             if (progress != null)
             {

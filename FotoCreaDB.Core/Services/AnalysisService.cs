@@ -16,7 +16,7 @@ namespace Foto_CreaDB2
         /// <returns>Esito dell'operazione.</returns>
         public AnalysisResult Run(
             AnalysisRequest request,
-            IProgress<AnalysisProgress> progress = null,
+            IProgress<AnalysisProgress>? progress = null,
             Action<ServiceLogMessage>? log = null)
         {
             if (request == null)
@@ -27,7 +27,7 @@ namespace Foto_CreaDB2
             ScanStatistics stats = new ScanStatistics();
 
             // Provare a caricare configurazione da file appsettings.json nella directory corrente
-            AppConfig fileConfig = AppConfigLoader.LoadFromFile("appsettings.json");
+            AppConfig? fileConfig = AppConfigLoader.LoadFromFile("appsettings.json");
 
             // Costruisci la config finale partendo dal file (se presente) e applicando gli override dalla request
             AppConfig config = fileConfig ?? new AppConfig();

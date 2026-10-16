@@ -8,7 +8,7 @@
         /// <summary>
         /// Descrizione sintetica della fase corrente.
         /// </summary>
-        public string CurrentStep { get; set; }
+        public string CurrentStep { get; set; } = string.Empty;
 
         /// <summary>
         /// Numero dei gruppi duplicati già elaborati.

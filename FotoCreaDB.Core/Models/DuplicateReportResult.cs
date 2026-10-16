@@ -15,12 +15,12 @@ namespace Foto_CreaDB2
         /// <summary>
         /// Eventuale messaggio finale.
         /// </summary>
-        public string Message { get; set; }
+        public string Message { get; set; } = string.Empty;
 
         /// <summary>
         /// Elenco delle decisioni di deduplicazione.
         /// </summary>
-        public List<DuplicateBinaryDecision> Decisions { get; set; }
+        public List<DuplicateBinaryDecision> Decisions { get; set; } = new List<DuplicateBinaryDecision>();
 
         /// <summary>
         /// Numero dei gruppi duplicati trovati.

@@ -18,7 +18,7 @@ namespace Foto_CreaDB2
         /// <returns>Esito del caricamento report.</returns>
         public DuplicateReportResult Run(
             DuplicateReportRequest request,
-            IProgress<DuplicateReportProgress> progress = null,
+            IProgress<DuplicateReportProgress>? progress = null,
             Action<ServiceLogMessage>? log = null)
         {
             if (request == null)
@@ -62,7 +62,7 @@ namespace Foto_CreaDB2
                 }
             }
 
-            int totalGroups = decisions != null ? decisions.Count : 0;
+            int totalGroups = decisions.Count;
             int filesToDelete = CountFilesToDelete(decisions);
             long bytesToDelete = 0;
 
@@ -75,7 +75,7 @@ namespace Foto_CreaDB2
                     TotalGroups = totalGroups
                 });
 
-            if (decisions != null && decisions.Count > 0)
+            if (decisions.Count > 0)
             {
                 ServiceCallbackHelper.Info(log, "Report duplicati: dettagli gruppi e file:");
 

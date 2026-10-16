@@ -18,7 +18,7 @@
         /// <summary>
         /// Percorso del file attualmente in elaborazione.
         /// </summary>
-        public string CurrentFile { get; set; }
+        public string? CurrentFile { get; set; }
 
         /// <summary>
         /// Percentuale di avanzamento.

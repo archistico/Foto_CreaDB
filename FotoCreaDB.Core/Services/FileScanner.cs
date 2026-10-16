@@ -17,8 +17,8 @@ namespace Foto_CreaDB2
         private readonly Logger? _logger;
         private readonly ScanStatistics _stats;
         private readonly string _currentScanToken;
-        private readonly IProgress<AnalysisProgress> _progress;
-        private readonly Action<ServiceLogMessage> _log;
+        private readonly IProgress<AnalysisProgress>? _progress;
+        private readonly Action<ServiceLogMessage>? _log;
 
         private int _totalFilesToProcess;
         private int _processedFiles;
@@ -58,8 +58,8 @@ namespace Foto_CreaDB2
             HashService hashService,
             Logger? logger,
             ScanStatistics stats,
-            IProgress<AnalysisProgress> progress = null,
-            Action<ServiceLogMessage> log = null)
+            IProgress<AnalysisProgress>? progress = null,
+            Action<ServiceLogMessage>? log = null)
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));

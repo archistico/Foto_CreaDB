@@ -8,12 +8,12 @@
         /// <summary>
         /// Percorsi da analizzare.
         /// </summary>
-        public string[] Paths { get; set; }
+        public string[] Paths { get; set; } = System.Array.Empty<string>();
 
         /// <summary>
         /// Percorso del database SQLite.
         /// </summary>
-        public string NomeDb { get; set; }
+        public string NomeDb { get; set; } = string.Empty;
 
         /// <summary>
         /// Indica se il database va cancellato se già esiste.

@@ -14,7 +14,7 @@ namespace FotoCreaDB.Tests.Unit.CommandLine
                 @"C:\Foto"
             };
 
-            CommandLineOptions result = Foto_CreaDB2.CommandLineParser.Parse(args);
+            CommandLineOptions? result = Foto_CreaDB2.CommandLineParser.Parse(args);
 
             Assert.NotNull(result);
             Assert.Equal(Foto_CreaDB2.AppAction.Analisi, result.Action);
@@ -34,7 +34,7 @@ namespace FotoCreaDB.Tests.Unit.CommandLine
                 "--verbose"
             };
 
-            CommandLineOptions result = Foto_CreaDB2.CommandLineParser.Parse(args);
+            CommandLineOptions? result = Foto_CreaDB2.CommandLineParser.Parse(args);
 
             Assert.NotNull(result);
             Assert.Equal(Foto_CreaDB2.AppAction.Analisi, result.Action);
@@ -52,7 +52,7 @@ namespace FotoCreaDB.Tests.Unit.CommandLine
                 @"C:\Db\foto.db"
             };
 
-            CommandLineOptions result = Foto_CreaDB2.CommandLineParser.Parse(args);
+            CommandLineOptions? result = Foto_CreaDB2.CommandLineParser.Parse(args);
 
             Assert.NotNull(result);
             Assert.Equal(Foto_CreaDB2.AppAction.Report, result.Action);
@@ -69,7 +69,7 @@ namespace FotoCreaDB.Tests.Unit.CommandLine
                 "--verbose"
             };
 
-            CommandLineOptions result = Foto_CreaDB2.CommandLineParser.Parse(args);
+            CommandLineOptions? result = Foto_CreaDB2.CommandLineParser.Parse(args);
 
             Assert.NotNull(result);
             Assert.Equal(Foto_CreaDB2.AppAction.Cancella, result.Action);

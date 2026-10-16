@@ -13,11 +13,11 @@
         /// <summary>
         /// Eventuale messaggio finale.
         /// </summary>
-        public string Message { get; set; }
+        public string Message { get; set; } = string.Empty;
 
         /// <summary>
         /// Statistiche raccolte durante la scansione.
         /// </summary>
-        public ScanStatistics Statistics { get; set; }
+        public ScanStatistics Statistics { get; set; } = new ScanStatistics();
     }
 }

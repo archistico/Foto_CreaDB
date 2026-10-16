@@ -19,7 +19,7 @@
         /// <summary>
         /// Percorso del file attualmente in lavorazione.
         /// </summary>
-        public string CurrentFile { get; set; }
+        public string? CurrentFile { get; set; }
 
         /// <summary>
         /// Percentuale calcolata sull'avanzamento.

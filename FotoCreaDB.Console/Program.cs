@@ -19,11 +19,11 @@ namespace Foto_CreaDB2
         /// </param>
         public static void Main(string[] args)
         {
-            Logger logger = null;
+            Logger? logger = null;
 
             try
             {
-                CommandLineOptions options = CommandLineParser.Parse(args);
+                CommandLineOptions? options = CommandLineParser.Parse(args);
 
                 if (options == null)
                 {

@@ -14,7 +14,7 @@ namespace Foto_CreaDB2
         /// Restituisce true se almeno un file è stato cancellato.
         /// I messaggi vengono inviati tramite il callback di log fornito.
         /// </summary>
-        public static bool DeleteDatabaseFiles(string databasePath, Action<ServiceLogMessage> log = null)
+        public static bool DeleteDatabaseFiles(string databasePath, Action<ServiceLogMessage>? log = null)
         {
             if (string.IsNullOrWhiteSpace(databasePath))
             {

@@ -20,11 +20,11 @@ namespace Foto_CreaDB2
         /// <summary>
         /// Testo del messaggio.
         /// </summary>
-        public string Message { get; set; }
+        public string Message { get; set; } = string.Empty;
 
         /// <summary>
         /// Eventuale eccezione associata.
         /// </summary>
-        public Exception Exception { get; set; }
+        public Exception? Exception { get; set; }
     }
 }

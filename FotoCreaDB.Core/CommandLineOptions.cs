@@ -14,12 +14,12 @@
         /// Percorso da analizzare.
         /// Usato solo nella modalità Analisi.
         /// </summary>
-        public string PathInput { get; set; }
+        public string? PathInput { get; set; }
 
         /// <summary>
         /// Percorso del database SQLite.
         /// </summary>
-        public string NomeDb { get; set; }
+        public string NomeDb { get; set; } = string.Empty;
 
         /// <summary>
         /// Indica se mostrare il dettaglio completo dei duplicati.
