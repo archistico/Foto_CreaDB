@@ -10,6 +10,44 @@ namespace FotoCreaDB.Tests.Wpf;
 public class ReportViewModelRegressionTests
 {
     [Fact]
+    public void SelectedPhotoScope_FiltersReportAndInvalidatesSummaryWhenChanged()
+    {
+        WithViewModel((folder, vm) =>
+        {
+            vm.DatabasePath = CreateDatabase(folder, "photos.db", 2);
+            vm.FotoPath = Path.Combine(folder, "0.jpg");
+            Generate(vm);
+            Assert.Equal(0, vm.LastFilesToDeleteCount);
+            vm.FotoPath = folder;
+            Assert.Null(vm.LastFilesToDeleteCount);
+            Generate(vm);
+            Assert.Equal(1, vm.LastFilesToDeleteCount);
+        });
+    }
+
+    [Fact]
+    public void Preferences_ReloadFromTheSameFileAfterChangingLaunchDirectory()
+    {
+        WithViewModel((folder, vm) =>
+        {
+            string config = Path.Combine(folder, "appsettings.json");
+            Assert.True(AppConfigLoader.SaveToFile(new AppConfig { EstensioniPermesse = new() { "gif" } }, config));
+            vm.FotoPath = Path.Combine(folder, "my-photos");
+            vm.DatabasePath = Path.Combine(folder, "my-photos.db");
+            vm.SavePreferences();
+            string launch = Path.Combine(folder, "launch");
+            Directory.CreateDirectory(launch);
+            Directory.SetCurrentDirectory(launch);
+            using var reloaded = new MainViewModel(config);
+            Assert.Equal(vm.FotoPath, reloaded.FotoPath);
+            Assert.Equal(vm.DatabasePath, reloaded.DatabasePath);
+            Assert.Equal("gif", Assert.Single(AppConfigLoader.LoadConfiguration(config).EstensioniPermesse));
+            reloaded.SavePreferences();
+            Assert.False(File.Exists(Path.Combine(launch, "appsettings.json")));
+        });
+    }
+
+    [Fact]
     public void FailedRefresh_DoesNotKeepPreviousReportNumbers()
     {
         WithViewModel((folder, vm) =>
@@ -112,7 +150,7 @@ public class ReportViewModelRegressionTests
             {
                 // MainViewModel saves preferences after a successful report.
                 Directory.SetCurrentDirectory(folder);
-                using var vm = new MainViewModel();
+                using var vm = new MainViewModel(Path.Combine(folder, "appsettings.json"));
                 test(folder, vm);
             }
             catch (Exception ex) { error = ex; }

@@ -38,11 +38,7 @@ namespace Foto_CreaDB2
 
             ScanStatistics stats = new ScanStatistics();
 
-            // Provare a caricare configurazione da file appsettings.json nella directory corrente
-            AppConfig? fileConfig = AppConfigLoader.LoadFromFile("appsettings.json");
-
-            // Costruisci la config finale partendo dal file (se presente) e applicando gli override dalla request
-            AppConfig config = fileConfig ?? new AppConfig();
+            AppConfig config = AppConfigLoader.Snapshot(request.Configuration);
             config.Paths = paths;
             config.NomeDb = System.IO.Path.GetFullPath(string.IsNullOrWhiteSpace(request.NomeDb) ? config.NomeDb : request.NomeDb);
             config.CancellaDbSeEsiste = request.CancellaDbSeEsiste;
@@ -59,7 +55,7 @@ namespace Foto_CreaDB2
                     if ((System.IO.File.GetAttributes(full) & System.IO.FileAttributes.ReparsePoint) != 0)
                         throw new ArgumentException("Reset database rifiutato: il path è un collegamento ignorato dalla scansione: " + full, nameof(request));
                     if (System.IO.File.Exists(full) && (!config.EstensioniPermesse.Contains(Utility.GetEstensione(full))
-                        || string.Equals(full, config.NomeDb, StringComparison.OrdinalIgnoreCase)))
+                        || string.Equals(full, config.NomeDb, PathIdentity.Comparison)))
                         throw new ArgumentException("Reset database rifiutato: il file selezionato non è processabile: " + full, nameof(request));
                 }
             }
@@ -68,6 +64,7 @@ namespace Foto_CreaDB2
             HashService hashService = new HashService();
 
             ServiceCallbackHelper.Info(log, "Avvio analisi.");
+            ServiceCallbackHelper.Info(log, "Estensioni processabili: " + string.Join(", ", config.EstensioniPermesse));
 
             using (DatabaseManager dbManager = new DatabaseManager(config.NomeDb, config.CancellaDbSeEsiste))
             {
@@ -98,9 +95,11 @@ namespace Foto_CreaDB2
 
             bool success = stats.TotaleErroriPath == 0 && stats.TotaleErroriFile == 0
                 && stats.TotaleErroriCartelle == 0 && stats.TotaleErroriDb == 0 && stats.TotaleErroriHash == 0;
-            string message = success ? "Analisi completata."
+            string message = success ? (stats.TotaleCollegamentiSaltati > 0
+                ? "Analisi completata con avvisi. Collegamenti ignorati: " + stats.TotaleCollegamentiSaltati + "."
+                : "Analisi completata.")
                 : "Analisi terminata con errori. Verificare il log prima di cancellare duplicati.";
-            if (success) ServiceCallbackHelper.Info(log, message);
+            if (success && stats.TotaleCollegamentiSaltati == 0) ServiceCallbackHelper.Info(log, message);
             else ServiceCallbackHelper.Warning(log, message);
 
             return new AnalysisResult

@@ -198,6 +198,7 @@ namespace Foto_CreaDB2
             int missing = 0;
             foreach (var item in unseen)
             {
+                if (!item.Path.StartsWith(normalizedRoot, PathIdentity.Comparison)) continue;
                 // Excluded, busy or inaccessible files are not necessarily absent.
                 if (!IsConfirmedMissing(item.Path)) continue;
                 using SQLiteCommand update = _conn.CreateCommand();

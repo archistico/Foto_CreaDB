@@ -24,6 +24,8 @@ public class DuplicateDeletionSafetyIntegrationTests
 
         var result = new DuplicateDeletionService().Run(new DeletionRequest { NomeDb = db });
 
+        Assert.False(result.Success);
+        Assert.Equal(1, result.FilesBlockedCount);
         Assert.Equal(0, result.FilesDeletedCount);
         Assert.Equal(0, result.DatabaseRecordsDeletedCount);
         Assert.Equal(original, File.ReadAllBytes(path));

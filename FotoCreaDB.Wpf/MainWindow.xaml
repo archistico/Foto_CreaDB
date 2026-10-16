@@ -115,6 +115,9 @@
 
                         <TextBlock Text="Cartella foto"
                                    Style="{StaticResource CaptionTextStyle}" />
+                        <TextBlock Text="Report e cancellazione includono solo questa cartella o file. Lascia il campo vuoto per includere tutte le cartelle del database."
+                                   TextWrapping="Wrap"
+                                   Style="{StaticResource CaptionTextStyle}" />
                         <DockPanel Margin="0,0,0,10">
                             <Button DockPanel.Dock="Right"
                                     Width="100"

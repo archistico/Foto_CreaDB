@@ -5,6 +5,8 @@
     /// </summary>
     public class AnalysisRequest
     {
+        public AppConfig? Configuration { get; set; }
+
         /// <summary>
         /// Percorsi da analizzare.
         /// </summary>

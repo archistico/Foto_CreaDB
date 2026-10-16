@@ -179,7 +179,7 @@ namespace Foto_CreaDB2
         /// <returns>Progress adapter per AnalysisProgress.</returns>
         public IProgress<AnalysisProgress> CreateAnalysisProgress()
         {
-            return new Progress<AnalysisProgress>(OnAnalysisProgress);
+            return new InlineProgress<AnalysisProgress>(OnAnalysisProgress);
         }
 
         /// <summary>
@@ -188,7 +188,7 @@ namespace Foto_CreaDB2
         /// <returns>Progress adapter per DuplicateReportProgress.</returns>
         public IProgress<DuplicateReportProgress> CreateReportProgress()
         {
-            return new Progress<DuplicateReportProgress>(OnReportProgress);
+            return new InlineProgress<DuplicateReportProgress>(OnReportProgress);
         }
 
         /// <summary>
@@ -197,7 +197,7 @@ namespace Foto_CreaDB2
         /// <returns>Progress adapter per DeletionProgress.</returns>
         public IProgress<DeletionProgress> CreateDeletionProgress()
         {
-            return new Progress<DeletionProgress>(OnDeletionProgress);
+            return new InlineProgress<DeletionProgress>(OnDeletionProgress);
         }
 
         /// <summary>

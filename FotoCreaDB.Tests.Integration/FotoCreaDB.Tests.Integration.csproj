@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FotoCreaDB.Core\FotoCreaDB.Core.csproj" />
+    <ProjectReference Include="..\FotoCreaDB.Console\FotoCreaDB.Console.csproj" />
   </ItemGroup>
 
   <ItemGroup>

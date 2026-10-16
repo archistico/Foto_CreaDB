@@ -8,12 +8,30 @@ namespace FotoCreaDB.Tests.Wpf;
 public class AnalysisViewModelRegressionTests
 {
     [Fact]
+    public void InvalidConfiguration_StopsAnalysisBeforeOpeningDatabaseAndIsPreserved()
+    {
+        WithViewModel((folder, vm) =>
+        {
+            string config = Path.Combine(folder, "appsettings.json");
+            File.WriteAllText(config, "{broken");
+            vm.FotoPath = Path.Combine(folder, "photo.jpg");
+            File.WriteAllText(vm.FotoPath, "photo");
+            vm.DatabasePath = Path.Combine(folder, "must-not-exist.db");
+            vm.AnalyzeCommand.Execute(null);
+            PumpUntil(() => !vm.IsBusy);
+            Assert.Contains("Errore", vm.StatusMessage);
+            Assert.False(File.Exists(vm.DatabasePath));
+            Assert.Equal("{broken", File.ReadAllText(config));
+        });
+    }
+
+    [Fact]
     public void Analyze_SnapshotsPathsBeforePublishingBusyState()
     {
         WithViewModel((folder, vm) =>
         {
-            string selected = Path.Combine(folder, "selected.pdf");
-            string other = Path.Combine(folder, "other.pdf");
+            string selected = Path.Combine(folder, "selected.jpg");
+            string other = Path.Combine(folder, "other.jpg");
             string selectedDb = Path.Combine(folder, "selected.db");
             string otherDb = Path.Combine(folder, "other.db");
             File.WriteAllText(selected, "selected");
@@ -46,7 +64,7 @@ public class AnalysisViewModelRegressionTests
     {
         WithViewModel((folder, vm) =>
         {
-            string photo = Path.Combine(folder, "selected.pdf");
+            string photo = Path.Combine(folder, "selected.jpg");
             string db = Path.Combine(folder, "photos.db");
             File.WriteAllText(photo, "photo");
             vm.FotoPath = photo;

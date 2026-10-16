@@ -68,8 +68,9 @@ namespace FotoCreaDB.Tests.Integration.Deletion
                     VerboseDuplicates = false
                 });
 
-            Assert.True(deletionResult.Success);
-            // La logica dovrebbe saltare il file modificato, quindi non verr‡ cancellato
+            Assert.False(deletionResult.Success);
+            Assert.Equal(1, deletionResult.FilesBlockedCount);
+            // La logica dovrebbe saltare il file modificato, quindi non verr√† cancellato
             Assert.Equal(0, deletionResult.FilesDeletedCount);
             Assert.Equal(0, deletionResult.DatabaseRecordsDeletedCount);
 

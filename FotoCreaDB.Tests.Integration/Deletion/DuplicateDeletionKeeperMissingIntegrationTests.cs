@@ -71,8 +71,9 @@ namespace FotoCreaDB.Tests.Integration.Deletion
                     VerboseDuplicates = false
                 });
 
-            Assert.True(deletionResult.Success);
-            // Se la logica salta il gruppo perchè il file da tenere manca, non devono essere cancellati duplicati
+            Assert.False(deletionResult.Success);
+            Assert.Equal(1, deletionResult.FilesBlockedCount);
+            // Se la logica salta il gruppo perchÃ¨ il file da tenere manca, non devono essere cancellati duplicati
             Assert.Equal(0, deletionResult.FilesDeletedCount);
             Assert.Equal(0, deletionResult.DatabaseRecordsDeletedCount);
 

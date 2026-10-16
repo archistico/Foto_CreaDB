@@ -16,6 +16,7 @@ namespace FotoCreaDB.Wpf.ViewModels
         private readonly DuplicateReportService _reportService;
         private readonly DuplicateDeletionService _deletionService;
         private readonly WpfServiceBridge _bridge;
+        private readonly string _configurationPath;
 
         private string _fotoPath = string.Empty;
         private string _databasePath = "foto.db";
@@ -26,8 +27,9 @@ namespace FotoCreaDB.Wpf.ViewModels
         private int? _lastFilesToDeleteCount;
         private string _lastFilesToDeleteSizeFormatted = "—";
 
-        public MainViewModel()
+        public MainViewModel(string? configurationPath = null)
         {
+            _configurationPath = Path.GetFullPath(configurationPath ?? AppConfigLoader.GetDefaultConfigPath());
             _analysisService = new AnalysisService();
             _reportService = new DuplicateReportService();
             _deletionService = new DuplicateDeletionService();
@@ -48,10 +50,7 @@ namespace FotoCreaDB.Wpf.ViewModels
             // Carica preferenze salvate da appsettings.json (se presenti).
             try
             {
-                string baseConfigPath = Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
-                string currentConfigPath = Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json");
-
-                AppConfig? cfg = AppConfigLoader.LoadFromFile(baseConfigPath) ?? AppConfigLoader.LoadFromFile(currentConfigPath);
+                AppConfig cfg = LoadConfiguration();
 
                 if (cfg != null)
                 {
@@ -108,28 +107,35 @@ namespace FotoCreaDB.Wpf.ViewModels
                     }
                 }
             }
-            catch
+            catch (System.Exception ex)
             {
-                // ignore loading errors
+                StatusMessage = "Errore nella configurazione.";
+                _bridge.OnLog(new ServiceLogMessage { Level = ServiceLogLevel.Error,
+                    Message = StatusMessage, Exception = ex });
             }
         }
 
         /// <summary>
         /// Salva le preferenze correnti (cartella foto e database) in `appsettings.json`
-        /// nella cartella di lavoro corrente.
+        /// nello stesso file usato per leggere le impostazioni.
         /// </summary>
         public void SavePreferences()
         {
             try
             {
-                string configPath = Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json");
-                PreferencesSaver.SavePreferences(FotoPath, DatabasePath, configPath);
+                if (!PreferencesSaver.SavePreferences(FotoPath, DatabasePath, _configurationPath))
+                    ServiceCallbackHelper.Warning(_bridge.OnLog, "Preferenze non salvate: " + _configurationPath);
             }
-            catch
+            catch (System.Exception ex)
             {
-                // non fare nulla se il salvataggio fallisce
+                ServiceCallbackHelper.Error(_bridge.OnLog, "Errore nel salvataggio delle preferenze.", ex);
             }
         }
+
+        private AppConfig LoadConfiguration() => AppConfigLoader.LoadConfiguration(_configurationPath, log: _bridge.OnLog);
+
+        private static string[] ScopePaths(string path) => string.IsNullOrWhiteSpace(path)
+            ? System.Array.Empty<string>() : new[] { Path.GetFullPath(path) };
 
         private static string FormatBytes(long bytes)
         {
@@ -162,6 +168,7 @@ namespace FotoCreaDB.Wpf.ViewModels
             {
                 if (SetProperty(ref _fotoPath, value))
                 {
+                    InvalidateReport();
                     CommandManager.InvalidateRequerySuggested();
                 }
             }
@@ -526,6 +533,7 @@ namespace FotoCreaDB.Wpf.ViewModels
             {
                 var request = new AnalysisRequest
                 {
+                    Configuration = LoadConfiguration(),
                     Paths = new[] { Path.GetFullPath(selectedFotoPath) },
                     NomeDb = Path.GetFullPath(selectedDatabase),
                     CancellaDbSeEsiste = false,
@@ -542,7 +550,7 @@ namespace FotoCreaDB.Wpf.ViewModels
                 StatusMessage = result.Message;
 
                 // salva preferenze (cartella foto e database) su appsettings.json
-                SavePreferences();
+                if (result.Success) SavePreferences();
             }
             catch (System.Exception ex)
             {
@@ -564,7 +572,9 @@ namespace FotoCreaDB.Wpf.ViewModels
 
         private async Task RunReportAsync()
         {
+            if (IsBusy) return;
             string selectedDatabase = DatabasePath;
+            string selectedFotoPath = FotoPath;
             bool verboseDuplicates = VerboseDuplicates;
             InvalidateReport();
             IsBusy = true;
@@ -576,6 +586,8 @@ namespace FotoCreaDB.Wpf.ViewModels
             {
                 var request = new DuplicateReportRequest
                 {
+                    Configuration = LoadConfiguration(),
+                    Paths = ScopePaths(selectedFotoPath),
                     NomeDb = Path.GetFullPath(selectedDatabase),
                     VerboseDuplicates = verboseDuplicates
                 };
@@ -585,16 +597,17 @@ namespace FotoCreaDB.Wpf.ViewModels
                         _bridge.CreateReportProgress(),
                         _bridge.OnLog));
 
-                if (!string.Equals(selectedDatabase, DatabasePath, System.StringComparison.Ordinal))
+                if (!string.Equals(selectedDatabase, DatabasePath, System.StringComparison.Ordinal)
+                    || !string.Equals(selectedFotoPath, FotoPath, System.StringComparison.Ordinal))
                 {
-                    StatusMessage = "Database cambiato. Generare un nuovo report.";
+                    StatusMessage = "Database cambiato o ambito modificato. Generare un nuovo report.";
                     return;
                 }
                 LastDuplicateGroupsCount = result.DuplicateGroupsCount;
                 LastFilesToDeleteCount = result.FilesToDeleteCount;
                 LastFilesToDeleteSizeFormatted = FormatBytes(result.FilesToDeleteSize);
 
-                StatusMessage = "Report completato.";
+                StatusMessage = result.Message;
 
                 // salva preferenze
                 SavePreferences();
@@ -613,22 +626,28 @@ namespace FotoCreaDB.Wpf.ViewModels
             finally
             {
                 _bridge.CompleteReport();
-                if (!string.Equals(selectedDatabase, DatabasePath, System.StringComparison.Ordinal)) InvalidateReport();
+                if (!string.Equals(selectedDatabase, DatabasePath, System.StringComparison.Ordinal)
+                    || !string.Equals(selectedFotoPath, FotoPath, System.StringComparison.Ordinal)) InvalidateReport();
                 IsBusy = false;
             }
         }
 
         private async Task RunDeleteAsync()
         {
+            if (IsBusy) return;
             // Capture the confirmed database before scheduling background work.
             string databasePath;
+            AppConfig configuration;
+            string[] paths;
             try
             {
                 databasePath = Path.GetFullPath(DatabasePath);
+                paths = ScopePaths(FotoPath);
+                configuration = LoadConfiguration();
             }
             catch (System.Exception ex)
             {
-                StatusMessage = "Percorso database non valido.";
+                StatusMessage = "Configurazione o percorso non valido.";
                 _bridge.OnLog(new ServiceLogMessage
                 {
                     Timestamp = System.DateTime.Now,
@@ -640,9 +659,10 @@ namespace FotoCreaDB.Wpf.ViewModels
             }
             bool verboseDuplicates = VerboseDuplicates;
             System.Windows.MessageBoxResult confirm = System.Windows.MessageBox.Show(
-                "Eliminare definitivamente tutti i duplicati binari registrati in questo database?\n\n"
+                "Eliminare definitivamente i duplicati binari nell'ambito indicato?\n\n"
                 + databasePath
-                + "\n\nL'operazione comprende tutte le cartelle registrate nel database. "
+                + "\n\nAmbito: " + (paths.Length == 0 ? "tutte le cartelle registrate nel database" : string.Join(", ", paths))
+                + "\nEstensioni: " + string.Join(", ", configuration.EstensioniPermesse) + ".\n"
                 + "Per ogni gruppo viene conservata una copia verificata. I file eliminati non passano dal Cestino.",
                 "Conferma cancellazione",
                 System.Windows.MessageBoxButton.YesNo,
@@ -665,6 +685,8 @@ namespace FotoCreaDB.Wpf.ViewModels
                     _deletionService.Run(
                         new DeletionRequest
                         {
+                            Configuration = configuration,
+                            Paths = paths,
                             NomeDb = databasePath,
                             VerboseDuplicates = verboseDuplicates
                         },
@@ -674,7 +696,7 @@ namespace FotoCreaDB.Wpf.ViewModels
                 StatusMessage = result.Message;
 
                 // salva preferenze
-                SavePreferences();
+                if (result.Success) SavePreferences();
             }
             catch (System.Exception ex)
             {

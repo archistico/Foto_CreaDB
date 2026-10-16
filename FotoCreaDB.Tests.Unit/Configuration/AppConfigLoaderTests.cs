@@ -8,7 +8,7 @@ namespace FotoCreaDB.Tests.Unit.Configuration
     public class AppConfigLoaderTests
     {
         [Fact]
-        public void LoadFromFile_NormalizesAndIncludesImageExtensions()
+        public void LoadFromFile_NormalizesWithoutExpandingAllowedExtensions()
         {
             string dir = Path.Combine(Path.GetTempPath(), "FotoCreaDB_AppConfigTests_" + System.Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(dir);
@@ -39,9 +39,9 @@ namespace FotoCreaDB.Tests.Unit.Configuration
                 Assert.Contains("nef", cfg.ImageExtensions, System.StringComparer.OrdinalIgnoreCase);
                 Assert.Contains("cr2", cfg.ImageExtensions, System.StringComparer.OrdinalIgnoreCase);
 
-                // Image extensions also ensured to be in EstensioniPermesse
-                Assert.Contains("nef", cfg.EstensioniPermesse, System.StringComparer.OrdinalIgnoreCase);
-                Assert.Contains("cr2", cfg.EstensioniPermesse, System.StringComparer.OrdinalIgnoreCase);
+                // Metadata capabilities must never widen the selection of files.
+                Assert.DoesNotContain("nef", cfg.EstensioniPermesse, System.StringComparer.OrdinalIgnoreCase);
+                Assert.DoesNotContain("cr2", cfg.EstensioniPermesse, System.StringComparer.OrdinalIgnoreCase);
             }
             finally
             {

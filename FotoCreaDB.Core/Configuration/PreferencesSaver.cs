@@ -10,7 +10,7 @@ namespace Foto_CreaDB2
     {
         /// <summary>
         /// Salva le preferenze sul file di configurazione specificato.
-        /// Ritorna true se il salvataggio è andato a buon fine.
+        /// Ritorna true se il salvataggio Ã¨ andato a buon fine.
         /// </summary>
         public static bool SavePreferences(string? fotoPath, string? databasePath, string configPath)
         {
@@ -18,10 +18,11 @@ namespace Foto_CreaDB2
             {
                 AppConfig cfg = AppConfigLoader.LoadFromFile(configPath) ?? new AppConfig();
 
-                if (!string.IsNullOrWhiteSpace(fotoPath))
+                if (fotoPath != null)
                 {
-                    // store as absolute path
-                    cfg.Paths = new[] { Path.GetFullPath(fotoPath) };
+                    // Empty input is an intentional whole-database scope in the UI.
+                    cfg.Paths = string.IsNullOrWhiteSpace(fotoPath) ? System.Array.Empty<string>()
+                        : new[] { Path.GetFullPath(fotoPath) };
                 }
 
                 if (!string.IsNullOrWhiteSpace(databasePath))

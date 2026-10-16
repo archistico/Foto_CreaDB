@@ -11,18 +11,17 @@ namespace Foto_CreaDB2
     {
         /// <summary>
         /// Loads configuration from the specified JSON file.
-        /// Returns null if the file does not exist or cannot be parsed.
+        /// Returns null only if the file does not exist. Invalid configuration is an error.
         /// </summary>
         public static AppConfig? LoadFromFile(string path)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-                {
-                    return null;
-                }
-
-                string json = File.ReadAllText(path);
+                if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Percorso configurazione vuoto.", nameof(path));
+                string json;
+                try { json = File.ReadAllText(path); }
+                catch (FileNotFoundException) { return null; }
+                catch (DirectoryNotFoundException) { return null; }
                 var opts = new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true,
@@ -30,10 +29,7 @@ namespace Foto_CreaDB2
                 };
 
                 AppConfig? cfg = JsonSerializer.Deserialize<AppConfig>(json, opts);
-                if (cfg == null)
-                {
-                    return null;
-                }
+                if (cfg == null) throw new InvalidDataException("La configurazione non può essere null: " + path);
 
                 // Validation / normalization
                 if (cfg.EstensioniPermesse == null)
@@ -50,21 +46,48 @@ namespace Foto_CreaDB2
                 cfg.EstensioniPermesse = NormalizeSet(cfg.EstensioniPermesse);
                 cfg.ImageExtensions = NormalizeSet(cfg.ImageExtensions);
 
-                // Ensure that image extensions are included among allowed extensions
-                foreach (string imgExt in cfg.ImageExtensions)
-                {
-                    if (!cfg.EstensioniPermesse.Contains(imgExt))
-                    {
-                        cfg.EstensioniPermesse.Add(imgExt);
-                    }
-                }
-
                 return cfg;
             }
-            catch
+            catch (JsonException ex)
             {
-                return null;
+                throw new InvalidDataException("Configurazione JSON non valida: " + Path.GetFullPath(path), ex);
             }
+        }
+
+        /// <summary>A stable, writable location shared by console, services and WPF.</summary>
+        public static string GetDefaultConfigPath()
+        {
+            string? configured = Environment.GetEnvironmentVariable("FOTOCREADB_CONFIG");
+            if (!string.IsNullOrWhiteSpace(configured)) return Path.GetFullPath(configured);
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "FotoCreaDB", "appsettings.json");
+        }
+
+        public static AppConfig LoadConfiguration(string? path = null, bool requireExists = false,
+            Action<ServiceLogMessage>? log = null)
+        {
+            string full = Path.GetFullPath(path ?? GetDefaultConfigPath());
+            AppConfig? loaded = LoadFromFile(full);
+            if (loaded == null && (requireExists || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("FOTOCREADB_CONFIG"))))
+                throw new FileNotFoundException("Configurazione non trovata: " + full, full);
+            AppConfig config = loaded ?? new AppConfig();
+            ServiceCallbackHelper.Info(log, "Configurazione: " + full);
+            if (loaded == null) ServiceCallbackHelper.Warning(log,
+                "Configurazione assente: uso delle estensioni predefinite per immagini e video.");
+            string directory = Path.GetDirectoryName(full)!;
+            config.Paths = (config.Paths ?? Array.Empty<string>())
+                .Select(p => Path.GetFullPath(p, directory)).ToArray();
+            config.NomeDb = Path.GetFullPath(config.NomeDb, directory);
+            return config;
+        }
+
+        /// <summary>Own mutable collections before publishing callbacks or scheduling work.</summary>
+        public static AppConfig Snapshot(AppConfig? config)
+        {
+            AppConfig snapshot = JsonSerializer.Deserialize<AppConfig>(JsonSerializer.Serialize(config ?? LoadConfiguration()))!;
+            snapshot.EstensioniPermesse = NormalizeSet(snapshot.EstensioniPermesse ?? throw new InvalidDataException("EstensioniPermesse non può essere null."));
+            snapshot.ImageExtensions = NormalizeSet(snapshot.ImageExtensions ?? throw new InvalidDataException("ImageExtensions non può essere null."));
+            return snapshot;
         }
 
         /// <summary>
@@ -89,7 +112,17 @@ namespace Foto_CreaDB2
                 };
 
                 string json = JsonSerializer.Serialize(cfg, opts);
-                System.IO.File.WriteAllText(path, json);
+                string full = Path.GetFullPath(path);
+                string temporary = full + "." + Guid.NewGuid().ToString("N") + ".tmp";
+                try
+                {
+                    System.IO.File.WriteAllText(temporary, json);
+                    File.Move(temporary, full, true);
+                }
+                finally
+                {
+                    if (File.Exists(temporary)) File.Delete(temporary);
+                }
                 return true;
             }
             catch
@@ -104,7 +137,8 @@ namespace Foto_CreaDB2
             foreach (var s in input)
             {
                 if (string.IsNullOrWhiteSpace(s)) continue;
-                result.Add(s.Trim().ToLowerInvariant());
+                string extension = s.Trim().TrimStart('.').ToLowerInvariant();
+                if (extension.Length > 0) result.Add(extension);
             }
 
             return new System.Collections.Generic.HashSet<string>(result, StringComparer.OrdinalIgnoreCase);

@@ -233,7 +233,8 @@ public class AnalysisSafetyRegressionTests
     }
 
     private static AnalysisRequest Request(TemporaryTestFolder folder, params string[] paths) =>
-        new() { Paths = paths, NomeDb = folder.GetPath("test.db") };
+        new() { Paths = paths, NomeDb = folder.GetPath("test.db"),
+            Configuration = new AppConfig { EstensioniPermesse = new(StringComparer.OrdinalIgnoreCase) { "pdf", "jpg" } } };
 
     private static ExistingFotoInfo? ReadPhoto(string database, string photo)
     {

@@ -28,6 +28,11 @@ namespace Foto_CreaDB2
             }
 
             List<DuplicateBinaryDecision> decisions;
+            AppConfig configuration = AppConfigLoader.Snapshot(request.Configuration);
+            var scope = new DuplicateScope(configuration, request.Paths);
+            string databasePath = System.IO.Path.GetFullPath(request.NomeDb);
+            bool verboseDuplicates = request.VerboseDuplicates;
+            string[] paths = (string[])request.Paths.Clone();
 
             ServiceCallbackHelper.Info(log, "Avvio caricamento report duplicati.");
             ServiceCallbackHelper.ReportProgress(
@@ -39,7 +44,12 @@ namespace Foto_CreaDB2
                     TotalGroups = 0
                 });
 
-            using (DatabaseManager dbManager = new DatabaseManager(request.NomeDb, false))
+            ServiceCallbackHelper.Info(log, "Estensioni del report e della cancellazione: "
+                + string.Join(", ", configuration.EstensioniPermesse));
+            ServiceCallbackHelper.Info(log, paths.Length == 0 ? "Ambito: tutte le cartelle del database."
+                : "Ambito: " + string.Join(", ", paths));
+
+            using (DatabaseManager dbManager = new DatabaseManager(databasePath, false))
             {
                 dbManager.OpenExistingReadOnly();
 
@@ -59,7 +69,8 @@ namespace Foto_CreaDB2
                             TotalGroups = 0
                         });
 
-                    decisions = repository.GetBinaryDuplicateDecisions();
+                    var candidates = repository.GetAllExistingFilesForBinaryDuplicateAnalysis();
+                    decisions = new DuplicateBinaryService().BuildDecisions(candidates.Where(scope.Includes).ToList());
                 }
             }
 
@@ -83,7 +94,7 @@ namespace Foto_CreaDB2
                     + " - Spazio occupato dai duplicati: " + FormatBytes(bytesToDelete));
             }
 
-            if (decisions.Count > 0 && request.VerboseDuplicates && log != null)
+            if (decisions.Count > 0 && verboseDuplicates && log != null)
             {
                 ServiceCallbackHelper.ReportProgress(progress, new DuplicateReportProgress
                 {

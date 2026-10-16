@@ -54,6 +54,8 @@ namespace FotoCreaDB.Tests.Integration.Deletion
                 });
 
             Assert.True(deletionResult.Success);
+            Assert.Equal(1, deletionResult.FilesMissingCount);
+            Assert.Equal(0, deletionResult.FilesBlockedCount);
             Assert.True(deletionResult.OrphanRecordsDeletedCount >= 1);
             Assert.True(deletionResult.DatabaseRecordsDeletedCount >= 1);
 

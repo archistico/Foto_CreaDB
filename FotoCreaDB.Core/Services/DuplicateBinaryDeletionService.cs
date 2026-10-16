@@ -16,8 +16,13 @@ namespace Foto_CreaDB2
             out int deletedDbRecordsCount,
             out int orphanDbRecordsDeletedCount,
             IProgress<DeletionProgress>? progress = null,
-            Action<ServiceLogMessage>? log = null)
+            Action<ServiceLogMessage>? log = null,
+            DeletionStatistics? statistics = null)
         {
+            statistics ??= new DeletionStatistics();
+            statistics.FilesBlockedCount = 0;
+            statistics.FilesMissingCount = 0;
+            statistics.DatabaseErrorsCount = 0;
             deletedDbRecordsCount = 0;
             orphanDbRecordsDeletedCount = 0;
             // Callers/callbacks must not redirect a decision during deletion.
@@ -59,6 +64,7 @@ namespace Foto_CreaDB2
                     ServiceCallbackHelper.Warning(log, "FILE DA TENERE NON VALIDATO, salto gruppo: " + keepPath + " - " + ex.Message);
                     foreach (var skipped in decision.FileDaEliminare)
                     {
+                        statistics.FilesBlockedCount++;
                         processed++;
                         Report(skipped.PercorsoCompleto);
                     }
@@ -75,7 +81,7 @@ namespace Foto_CreaDB2
                             if (!IsValidHash(item.HashSha256) ||
                                 !string.Equals(item.HashSha256, decision.HashSha256, StringComparison.OrdinalIgnoreCase) ||
                                 item.Dimensione != decision.Dimensione ||
-                                string.Equals(Path.GetFullPath(item.PercorsoCompleto), Path.GetFullPath(keepPath), StringComparison.OrdinalIgnoreCase))
+                                string.Equals(Path.GetFullPath(item.PercorsoCompleto), Path.GetFullPath(keepPath), PathIdentity.Comparison))
                                 throw new IOException("Il candidato non è una copia distinta e coerente con il gruppo.");
 
                             // Exclusive access also rejects hard links/aliases of the keeper.
@@ -86,19 +92,21 @@ namespace Foto_CreaDB2
                                 LockedFile.Delete(candidate);
                             }
                             deleted++;
-                            deletedDbRecordsCount += RemoveRecord(repository, item, logger, log);
+                            deletedDbRecordsCount += RemoveRecord(repository, item, logger, log, statistics);
                             logger?.WriteLine("ELIMINATO: " + item.PercorsoCompleto);
                             ServiceCallbackHelper.Info(log, "ELIMINATO: " + item.PercorsoCompleto);
                         }
                         catch (FileNotFoundException)
                         {
-                            int removed = RemoveRecord(repository, item, logger, log);
+                            statistics.FilesMissingCount++;
+                            int removed = RemoveRecord(repository, item, logger, log, statistics);
                             deletedDbRecordsCount += removed;
                             orphanDbRecordsDeletedCount += removed;
                             ServiceCallbackHelper.Warning(log, "NON TROVATO SU DISCO: " + item.PercorsoCompleto);
                         }
                         catch (Exception ex)
                         {
+                            statistics.FilesBlockedCount++;
                             logger?.WriteError("Cancellazione bloccata: " + item.PercorsoCompleto, ex);
                             ServiceCallbackHelper.Warning(log, "Cancellazione bloccata: " + item.PercorsoCompleto + " - " + ex.Message);
                         }
@@ -123,11 +131,17 @@ namespace Foto_CreaDB2
         };
 
         private static int RemoveRecord(FotoRepository repository, DuplicateBinaryCandidate item,
-            Logger? logger, Action<ServiceLogMessage>? log)
+            Logger? logger, Action<ServiceLogMessage>? log, DeletionStatistics statistics)
         {
-            try { return repository.DeleteByIdAndPath(item.Id, item.PercorsoCompleto); }
+            try
+            {
+                int removed = repository.DeleteByIdAndPath(item.Id, item.PercorsoCompleto);
+                if (removed != 1) throw new IOException("Il record del file non corrisponde più al piano di cancellazione.");
+                return removed;
+            }
             catch (Exception ex)
             {
+                statistics.DatabaseErrorsCount++;
                 logger?.WriteError("Errore durante la cancellazione del record DB ID=" + item.Id, ex);
                 ServiceCallbackHelper.Error(log, "Errore durante la cancellazione del record DB ID=" + item.Id, ex);
                 return 0;

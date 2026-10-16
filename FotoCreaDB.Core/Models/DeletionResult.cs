@@ -10,6 +10,10 @@
         /// </summary>
         public bool Success { get; set; }
 
+        public int FilesBlockedCount { get; set; }
+        public int FilesMissingCount { get; set; }
+        public int DatabaseErrorsCount { get; set; }
+
         /// <summary>
         /// Eventuale messaggio finale.
         /// </summary>

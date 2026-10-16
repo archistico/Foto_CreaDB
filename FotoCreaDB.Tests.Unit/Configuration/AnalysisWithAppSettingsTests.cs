@@ -4,6 +4,7 @@ using Xunit;
 
 namespace FotoCreaDB.Tests.Unit.Configuration
 {
+    [Collection("Configuration filesystem")]
     public class AnalysisWithAppSettingsTests
     {
         [Fact]
@@ -34,6 +35,7 @@ namespace FotoCreaDB.Tests.Unit.Configuration
                 AnalysisResult result = svc.Run(new AnalysisRequest
                 {
                     Paths = new[] { temp },
+                    Configuration = AppConfigLoader.LoadConfiguration(cfgFile),
                     NomeDb = Path.Combine(temp, "foto.db"),
                     CancellaDbSeEsiste = false,
                     LogDettagliato = false,

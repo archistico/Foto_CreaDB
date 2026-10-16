@@ -5,6 +5,11 @@
     /// </summary>
     public class DeletionRequest
     {
+        public AppConfig? Configuration { get; set; }
+
+        /// <summary>Optional file/directory scope. Empty means the whole database.</summary>
+        public string[] Paths { get; set; } = System.Array.Empty<string>();
+
         /// <summary>
         /// Percorso del database SQLite.
         /// </summary>

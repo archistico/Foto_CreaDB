@@ -27,9 +27,11 @@ namespace Foto_CreaDB2
         private int _discoveredFiles;
         private string _currentDiscoveryDirectory = string.Empty;
         private long _lastDiscoveryReportTimestamp;
-        private readonly HashSet<string> _visitedFiles = new(StringComparer.OrdinalIgnoreCase);
-        private readonly HashSet<string> _visitedDirectories = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _visitedFiles = new(PathIdentity.Comparer);
+        private readonly HashSet<string> _visitedDirectories = new(PathIdentity.Comparer);
         private readonly HashSet<string> _excludedDatabaseFiles;
+        private readonly HashSet<string> _skippedLinks = new(PathIdentity.Comparer);
+        private bool _countingFiles;
 
         /// <summary>
         /// Inizializza una nuova istanza dello scanner con tutti i servizi necessari alla scansione.
@@ -78,7 +80,7 @@ namespace Foto_CreaDB2
             _progress = progress;
             _log = log;
             string databasePath = Path.GetFullPath(config.NomeDb);
-            _excludedDatabaseFiles = new(StringComparer.OrdinalIgnoreCase)
+            _excludedDatabaseFiles = new(PathIdentity.Comparer)
             {
                 databasePath, databasePath + "-wal", databasePath + "-shm", databasePath + "-journal"
             };
@@ -105,7 +107,10 @@ namespace Foto_CreaDB2
             _visitedFiles.Clear();
             _visitedDirectories.Clear();
             ReportDiscovery(null, true);
-            _totalFilesToProcess = CountProcessableFiles();
+            _skippedLinks.Clear();
+            _countingFiles = true;
+            try { _totalFilesToProcess = CountProcessableFiles(); }
+            finally { _countingFiles = false; }
             ReportDiscovery(null, true);
             _visitedFiles.Clear();
             _visitedDirectories.Clear();
@@ -152,7 +157,7 @@ namespace Foto_CreaDB2
             ReportProgress(null);
 
             _logger?.WriteFinalStatistics(_stats);
-            ServiceCallbackHelper.Info(_log, "Scansione completata.");
+            ServiceCallbackHelper.Info(_log, "Scansione terminata.");
         }
 
         /// <summary>
@@ -274,7 +279,7 @@ namespace Foto_CreaDB2
             {
                 if (IsReparsePoint(targetDirectory))
                 {
-                    ServiceCallbackHelper.Warning(_log, "Cartella collegata ignorata: " + targetDirectory);
+                    RecordSkippedLink(targetDirectory);
                     return;
                 }
                 if (!_visitedDirectories.Add(targetDirectory)) return;
@@ -468,7 +473,19 @@ namespace Foto_CreaDB2
             if (!_config.EstensioniPermesse.Contains(Utility.GetEstensione(path))) return false;
             // A custom database name may itself have an allowed photo extension.
             if (_excludedDatabaseFiles.Contains(path)) return false;
-            return !IsReparsePoint(path) && _visitedFiles.Add(path);
+            if (IsReparsePoint(path))
+            {
+                if (!_countingFiles) RecordSkippedLink(path);
+                return false;
+            }
+            return _visitedFiles.Add(path);
+        }
+
+        private void RecordSkippedLink(string path)
+        {
+            if (!_skippedLinks.Add(path)) return;
+            _stats.TotaleCollegamentiSaltati++;
+            ServiceCallbackHelper.Warning(_log, "Collegamento ignorato: " + path);
         }
 
         private void ReportDiscovery(string? directory, bool force = false)

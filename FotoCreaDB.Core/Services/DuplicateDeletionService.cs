@@ -26,11 +26,16 @@ namespace Foto_CreaDB2
             }
 
             DuplicateReportService reportService = new DuplicateReportService();
+            string databasePath = System.IO.Path.GetFullPath(request.NomeDb);
+            AppConfig configuration = AppConfigLoader.Snapshot(request.Configuration);
+            string[] paths = (string[])request.Paths.Clone();
 
             DuplicateReportResult reportResult = reportService.Run(
                 new DuplicateReportRequest
                 {
-                    NomeDb = request.NomeDb,
+                    NomeDb = databasePath,
+                    Configuration = configuration,
+                    Paths = paths,
                     VerboseDuplicates = request.VerboseDuplicates
                 },
                 null,
@@ -69,26 +74,36 @@ namespace Foto_CreaDB2
 
             int deletedDbRecordsCount;
             int orphanDbRecordsDeletedCount;
+            var statistics = new DeletionStatistics();
 
             int deletedCount = deletionService.DeleteFiles(
                 decisions,
-                request.NomeDb,
+                databasePath,
                 null,
                 out deletedDbRecordsCount,
                 out orphanDbRecordsDeletedCount,
                 progress,
-                log);
+                log,
+                statistics);
 
-            ServiceCallbackHelper.Info(log, "Cancellazione completata.");
+            bool success = statistics.FilesBlockedCount == 0 && statistics.DatabaseErrorsCount == 0;
+            string message = (success ? "Cancellazione completata. " : "Cancellazione incompleta. ")
+                + "File eliminati: " + deletedCount
+                + " - File bloccati: " + statistics.FilesBlockedCount
+                + " - File già mancanti: " + statistics.FilesMissingCount
+                + " - Record DB eliminati: " + deletedDbRecordsCount
+                + " - Record orfani bonificati: " + orphanDbRecordsDeletedCount
+                + " - Errori DB: " + statistics.DatabaseErrorsCount + ".";
+            if (success) ServiceCallbackHelper.Info(log, message);
+            else ServiceCallbackHelper.Warning(log, message);
 
             return new DeletionResult
             {
-                Success = true,
-                Message =
-                    "Cancellazione completata. "
-                    + "File eliminati: " + deletedCount
-                    + " - Record DB eliminati: " + deletedDbRecordsCount
-                    + " - Record orfani bonificati: " + orphanDbRecordsDeletedCount + ".",
+                Success = success,
+                Message = message,
+                FilesBlockedCount = statistics.FilesBlockedCount,
+                FilesMissingCount = statistics.FilesMissingCount,
+                DatabaseErrorsCount = statistics.DatabaseErrorsCount,
                 FilesToDeleteCount = filesToDeleteCount,
                 FilesDeletedCount = deletedCount,
                 DatabaseRecordsDeletedCount = deletedDbRecordsCount,

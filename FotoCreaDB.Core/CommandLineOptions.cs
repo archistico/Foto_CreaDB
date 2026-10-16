@@ -5,6 +5,9 @@
     /// </summary>
     public class CommandLineOptions
     {
+        public string? ConfigurationPath { get; set; }
+        public string[] ScopePaths { get; set; } = System.Array.Empty<string>();
+
         /// <summary>
         /// Azione richiesta.
         /// </summary>

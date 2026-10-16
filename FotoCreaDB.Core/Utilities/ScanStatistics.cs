@@ -6,6 +6,8 @@
     /// </summary>
     public class ScanStatistics
     {
+        public long TotaleCollegamentiSaltati { get; set; }
+
         /// <summary>
         /// Numero totale di path iniziali passati in input all'applicazione.
         /// </summary>
