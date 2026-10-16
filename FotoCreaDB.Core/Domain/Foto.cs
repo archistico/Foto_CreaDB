@@ -49,6 +49,9 @@ namespace Foto_CreaDB2
         /// </summary>
         public string dataFileModifica { get; set; } = "";
 
+        /// <summary>Timestamp UTC completo per la verifica incrementale; 0 nei record precedenti.</summary>
+        public long dataFileModificaUtcTicks { get; set; }
+
         /// <summary>
         /// Data di scatto estratta dai metadati, se disponibile.
         /// </summary>

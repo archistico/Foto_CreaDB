@@ -81,6 +81,7 @@ namespace Foto_CreaDB2
                     + ", HASH_SHA256"
                     + ", FILE_ESISTE"
                     + ", IFNULL(DATA_SCANSIONE, '') AS DATA_SCANSIONE "
+                    + ", IFNULL(DATA_FILE_MODIFICA_UTC_TICKS, 0) AS DATA_FILE_MODIFICA_UTC_TICKS "
                     + "FROM FOTO "
                     + "WHERE PERCORSO_COMPLETO = @percorso";
 
@@ -98,6 +99,7 @@ namespace Foto_CreaDB2
                         Id = Convert.ToInt64(reader["ID"]),
                         PercorsoCompleto = Convert.ToString(reader["PERCORSO_COMPLETO"]) ?? "",
                         DataFileModifica = Convert.ToString(reader["DATA_FILE_MODIFICA"]) ?? "",
+                        DataFileModificaUtcTicks = Convert.ToInt64(reader["DATA_FILE_MODIFICA_UTC_TICKS"]),
                         DataScatto = Convert.ToString(reader["DATA_SCATTO"]) ?? "",
                         Dimensione = reader["DIMENSIONE"] == DBNull.Value ? 0 : Convert.ToInt64(reader["DIMENSIONE"]),
                         HashSha256 = Convert.ToString(reader["HASH_SHA256"]) ?? "",
@@ -249,6 +251,7 @@ namespace Foto_CreaDB2
                 + ", MIME_TYPE"
                 + ", DIMENSIONE"
                 + ", DATA_FILE_MODIFICA"
+                + ", DATA_FILE_MODIFICA_UTC_TICKS"
                 + ", DATA_SCATTO"
                 + ", LARGHEZZA"
                 + ", ALTEZZA"
@@ -277,6 +280,7 @@ namespace Foto_CreaDB2
                 + ", @mime_type"
                 + ", @dimensione"
                 + ", @data_file_modifica"
+                + ", @data_file_modifica_utc_ticks"
                 + ", @data_scatto"
                 + ", @larghezza"
                 + ", @altezza"
@@ -315,6 +319,7 @@ namespace Foto_CreaDB2
                 + ", MIME_TYPE = @mime_type"
                 + ", DIMENSIONE = @dimensione"
                 + ", DATA_FILE_MODIFICA = @data_file_modifica"
+                + ", DATA_FILE_MODIFICA_UTC_TICKS = @data_file_modifica_utc_ticks"
                 + ", DATA_SCATTO = @data_scatto"
                 + ", LARGHEZZA = @larghezza"
                 + ", ALTEZZA = @altezza"
@@ -350,6 +355,7 @@ namespace Foto_CreaDB2
             cmd.Parameters.Add("@mime_type", System.Data.DbType.String);
             cmd.Parameters.Add("@dimensione", System.Data.DbType.Int64);
             cmd.Parameters.Add("@data_file_modifica", System.Data.DbType.String);
+            cmd.Parameters.Add("@data_file_modifica_utc_ticks", System.Data.DbType.Int64);
             cmd.Parameters.Add("@data_scatto", System.Data.DbType.String);
             cmd.Parameters.Add("@larghezza", System.Data.DbType.Int32);
             cmd.Parameters.Add("@altezza", System.Data.DbType.Int32);
@@ -381,6 +387,7 @@ namespace Foto_CreaDB2
             cmd.Parameters["@mime_type"].Value = Utility.Nz(foto.mimeType);
             cmd.Parameters["@dimensione"].Value = foto.dimensione;
             cmd.Parameters["@data_file_modifica"].Value = Utility.Nz(foto.dataFileModifica);
+            cmd.Parameters["@data_file_modifica_utc_ticks"].Value = foto.dataFileModificaUtcTicks;
             cmd.Parameters["@data_scatto"].Value = Utility.Nz(foto.dataScatto);
             cmd.Parameters["@larghezza"].Value = foto.larghezza;
             cmd.Parameters["@altezza"].Value = foto.altezza;

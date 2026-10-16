@@ -512,6 +512,10 @@ namespace FotoCreaDB.Wpf.ViewModels
 
         private async Task RunAnalyzeAsync()
         {
+            if (IsBusy) return;
+            string selectedFotoPath = FotoPath;
+            string selectedDatabase = DatabasePath;
+            bool verboseDuplicates = VerboseDuplicates;
             InvalidateReport();
             IsBusy = true;
             StatusMessage = "Analisi in corso...";
@@ -520,17 +524,18 @@ namespace FotoCreaDB.Wpf.ViewModels
 
             try
             {
+                var request = new AnalysisRequest
+                {
+                    Paths = new[] { Path.GetFullPath(selectedFotoPath) },
+                    NomeDb = Path.GetFullPath(selectedDatabase),
+                    CancellaDbSeEsiste = false,
+                    LogDettagliato = false,
+                    ProgressEvery = 1000,
+                    VerboseDuplicates = verboseDuplicates
+                };
                 AnalysisResult result = await Task.Run(() =>
                     _analysisService.Run(
-                        new AnalysisRequest
-                        {
-                            Paths = new[] { FotoPath },
-                            NomeDb = DatabasePath,
-                            CancellaDbSeEsiste = false,
-                            LogDettagliato = false,
-                            ProgressEvery = 1000,
-                            VerboseDuplicates = VerboseDuplicates
-                        },
+                        request,
                         _bridge.CreateAnalysisProgress(),
                         _bridge.OnLog));
 

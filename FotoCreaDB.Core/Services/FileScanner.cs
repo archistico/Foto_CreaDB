@@ -27,6 +27,9 @@ namespace Foto_CreaDB2
         private int _discoveredFiles;
         private string _currentDiscoveryDirectory = string.Empty;
         private long _lastDiscoveryReportTimestamp;
+        private readonly HashSet<string> _visitedFiles = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _visitedDirectories = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _excludedDatabaseFiles;
 
         /// <summary>
         /// Inizializza una nuova istanza dello scanner con tutti i servizi necessari alla scansione.
@@ -74,6 +77,11 @@ namespace Foto_CreaDB2
             _stats = stats ?? throw new ArgumentNullException(nameof(stats));
             _progress = progress;
             _log = log;
+            string databasePath = Path.GetFullPath(config.NomeDb);
+            _excludedDatabaseFiles = new(StringComparer.OrdinalIgnoreCase)
+            {
+                databasePath, databasePath + "-wal", databasePath + "-shm", databasePath + "-journal"
+            };
         }
 
         /// <summary>
@@ -94,9 +102,13 @@ namespace Foto_CreaDB2
             _totalFilesToProcess = 0;
             _discoveredFiles = 0;
             _currentDiscoveryDirectory = string.Empty;
+            _visitedFiles.Clear();
+            _visitedDirectories.Clear();
             ReportDiscovery(null, true);
             _totalFilesToProcess = CountProcessableFiles();
             ReportDiscovery(null, true);
+            _visitedFiles.Clear();
+            _visitedDirectories.Clear();
 
             ServiceCallbackHelper.Info(_log, "Conteggio file da analizzare completato: " + _totalFilesToProcess);
             ReportProgress(null);
@@ -105,14 +117,13 @@ namespace Foto_CreaDB2
             {
                 try
                 {
-                    string fullPath = Path.GetFullPath(path);
+                    string fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 
                     if (File.Exists(fullPath))
                     {
                         _stats.TotaleFileTrovati++;
 
-                        string estensione = Utility.GetEstensione(fullPath);
-                        if (_config.EstensioniPermesse.Contains(estensione) && !IsReparsePoint(fullPath))
+                        if (TryVisitFile(fullPath))
                         {
                             _stats.TotaleFileConEstensioneValida++;
                             ProcessFile(fullPath);
@@ -164,14 +175,13 @@ namespace Foto_CreaDB2
                         continue;
                     }
 
-                    string fullPath = Path.GetFullPath(path);
+                    string fullPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 
                     ReportDiscovery(fullPath, true);
                     if (File.Exists(fullPath))
                     {
                         ReportDiscovery(Path.GetDirectoryName(fullPath), true);
-                        string estensione = Utility.GetEstensione(fullPath);
-                        if (_config.EstensioniPermesse.Contains(estensione) && !IsReparsePoint(fullPath))
+                        if (TryVisitFile(fullPath))
                         {
                             total++;
                             _discoveredFiles++;
@@ -209,12 +219,12 @@ namespace Foto_CreaDB2
             {
                 ReportDiscovery(targetDirectory, true);
                 if (IsReparsePoint(targetDirectory)) return 0;
+                if (!_visitedDirectories.Add(targetDirectory)) return 0;
                 foreach (string fileName in System.IO.Directory.EnumerateFiles(targetDirectory))
                 {
                     try
                     {
-                        string estensione = Utility.GetEstensione(fileName);
-                        if (_config.EstensioniPermesse.Contains(estensione) && !IsReparsePoint(fileName))
+                        if (TryVisitFile(fileName))
                         {
                             total++;
                             _discoveredFiles++;
@@ -267,6 +277,7 @@ namespace Foto_CreaDB2
                     ServiceCallbackHelper.Warning(_log, "Cartella collegata ignorata: " + targetDirectory);
                     return;
                 }
+                if (!_visitedDirectories.Add(targetDirectory)) return;
                 _stats.TotaleCartelleVisitate++;
 
                 foreach (string fileName in System.IO.Directory.EnumerateFiles(targetDirectory))
@@ -275,8 +286,7 @@ namespace Foto_CreaDB2
                     {
                         _stats.TotaleFileTrovati++;
 
-                        string estensione = Utility.GetEstensione(fileName);
-                        if (_config.EstensioniPermesse.Contains(estensione) && !IsReparsePoint(fileName))
+                        if (TryVisitFile(fileName))
                         {
                             _stats.TotaleFileConEstensioneValida++;
                             ProcessFile(fileName);
@@ -340,6 +350,9 @@ namespace Foto_CreaDB2
             {
                 _stats.TotaleFileElaborati++;
 
+                // Deny writers and renames for the complete snapshot, including
+                // the incremental-cache check, metadata, hash and database save.
+                using var readGuard = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read);
                 FileInfo fInfo = new FileInfo(imagePath);
 
                 if (!fInfo.Exists)
@@ -355,6 +368,8 @@ namespace Foto_CreaDB2
                 if (existing != null
                     && existing.FileEsiste
                     && existing.HashSha256.Length == 64 && existing.HashSha256.All(Uri.IsHexDigit)
+                    && existing.DataFileModificaUtcTicks > 0
+                    && existing.DataFileModificaUtcTicks == fInfo.LastWriteTimeUtc.Ticks
                     && string.Equals(existing.DataFileModifica, dataFileModifica, StringComparison.Ordinal)
                     && existing.Dimensione == dimensione)
                 {
@@ -448,6 +463,14 @@ namespace Foto_CreaDB2
         private static bool IsReparsePoint(string path) =>
             (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
 
+        private bool TryVisitFile(string path)
+        {
+            if (!_config.EstensioniPermesse.Contains(Utility.GetEstensione(path))) return false;
+            // A custom database name may itself have an allowed photo extension.
+            if (_excludedDatabaseFiles.Contains(path)) return false;
+            return !IsReparsePoint(path) && _visitedFiles.Add(path);
+        }
+
         private void ReportDiscovery(string? directory, bool force = false)
         {
             if (_progress == null) return;
@@ -509,6 +532,7 @@ namespace Foto_CreaDB2
                 estensione = Utility.GetEstensione(fInfo.FullName),
                 dimensione = dimensione,
                 dataFileModifica = dataFileModifica,
+                dataFileModificaUtcTicks = fInfo.LastWriteTimeUtc.Ticks,
                 dataScatto = "",
                 larghezza = 0,
                 altezza = 0,

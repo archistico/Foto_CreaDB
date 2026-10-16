@@ -21,6 +21,9 @@
         /// </summary>
         public string DataFileModifica { get; set; } = "";
 
+        /// <summary>Timestamp UTC completo; 0 se il record richiede una nuova analisi.</summary>
+        public long DataFileModificaUtcTicks { get; set; }
+
         /// <summary>
         /// Data di scatto estratta dai metadati, se disponibile.
         /// </summary>

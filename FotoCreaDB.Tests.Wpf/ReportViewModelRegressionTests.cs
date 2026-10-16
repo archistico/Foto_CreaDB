@@ -100,7 +100,7 @@ public class ReportViewModelRegressionTests
         PumpUntil(() => !vm.IsBusy);
     }
 
-    private static void WithViewModel(Action<string, MainViewModel> test)
+    internal static void WithViewModel(Action<string, MainViewModel> test)
     {
         Exception? error = null;
         var thread = new Thread(() =>
@@ -129,7 +129,7 @@ public class ReportViewModelRegressionTests
         if (error != null) ExceptionDispatchInfo.Capture(error).Throw();
     }
 
-    private static void PumpUntil(Func<bool> ready)
+    internal static void PumpUntil(Func<bool> ready)
     {
         var frame = new DispatcherFrame();
         var elapsed = System.Diagnostics.Stopwatch.StartNew();

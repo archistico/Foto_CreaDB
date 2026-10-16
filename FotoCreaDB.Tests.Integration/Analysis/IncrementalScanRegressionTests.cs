@@ -56,7 +56,7 @@ public class IncrementalScanRegressionTests
     }
 
     [Fact]
-    public void Run_AfterTemporaryHashFailure_RetriesUnchangedFile()
+    public void Run_AfterTemporaryReadLockFailure_RetriesUnchangedFile()
     {
         using TemporaryTestFolder folder = new();
         string photo = folder.GetPath("photo.jpg");
@@ -68,7 +68,7 @@ public class IncrementalScanRegressionTests
         }
         using (var firstDb = OpenDatabase(folder))
         using (var repository = new FotoRepository(firstDb.Connection!))
-            Assert.Equal("", repository.GetByPercorso(photo)!.HashSha256);
+            Assert.Null(repository.GetByPercorso(photo));
 
         var result = new AnalysisService().Run(request);
 

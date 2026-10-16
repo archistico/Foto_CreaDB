@@ -130,6 +130,7 @@ namespace Foto_CreaDB2
                 + ", MIME_TYPE TEXT"
                 + ", DIMENSIONE INTEGER"
                 + ", DATA_FILE_MODIFICA TEXT"
+                + ", DATA_FILE_MODIFICA_UTC_TICKS INTEGER NOT NULL DEFAULT 0"
                 + ", DATA_SCATTO TEXT"
                 + ", LARGHEZZA INTEGER"
                 + ", ALTEZZA INTEGER"
@@ -175,6 +176,7 @@ namespace Foto_CreaDB2
 
             EnsureColumnExists("FOTO", "DATA_SCANSIONE", "TEXT");
             EnsureColumnExists("FOTO", "FILE_ESISTE", "INTEGER NOT NULL DEFAULT 1");
+            EnsureColumnExists("FOTO", "DATA_FILE_MODIFICA_UTC_TICKS", "INTEGER NOT NULL DEFAULT 0");
         }
 
         /// <summary>

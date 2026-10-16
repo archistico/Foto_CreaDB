@@ -42,9 +42,10 @@ avvisi trattati come errori. I 13 casi aggiunti si trovano in
 
 ## Limiti
 
-- La scansione incrementale continua a usare dimensione e data di modifica al
-  secondo per riutilizzare un hash già valido. Modifiche della stessa dimensione
-  con la stessa data possono lasciare un report non aggiornato. Il servizio di
+- La successiva [verifica di Avvia analisi](ANALYSIS_AUDIT.md) ha sostituito il
+  confronto al secondo con un timestamp UTC completo. Modifiche della stessa
+  dimensione che preservano esattamente il timestamp possono comunque lasciare
+  un report non aggiornato. Il servizio di
   cancellazione verifica nuovamente hash e byte dei file sotto blocco: il solo
   report non autorizza una cancellazione.
 - Ignorare i collegamenti è una scelta prudente: una collezione raggiungibile

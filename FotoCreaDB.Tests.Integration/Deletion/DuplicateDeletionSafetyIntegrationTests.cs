@@ -15,10 +15,10 @@ public class DuplicateDeletionSafetyIntegrationTests
         TestImageFactory.CreateJpegImage(path);
         byte[] original = File.ReadAllBytes(path);
         string db = folder.GetPath("test.db");
-        new AnalysisService().Run(new AnalysisRequest
-        {
-            NomeDb = db, Paths = new[] { path, path.ToUpperInvariant() }
-        });
+        // Separate runs retain coverage of aliases already present in a database;
+        // a single scan now visits case variants only once.
+        foreach (string input in new[] { path, path.ToUpperInvariant() })
+            new AnalysisService().Run(new AnalysisRequest { NomeDb = db, Paths = new[] { input } });
         var report = new DuplicateReportService().Run(new DuplicateReportRequest { NomeDb = db });
         Assert.Equal(1, report.FilesToDeleteCount);
 

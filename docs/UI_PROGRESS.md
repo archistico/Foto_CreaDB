@@ -46,7 +46,7 @@ dotnet test FotoCreaDB.sln --no-restore --verbosity minimal
 dotnet build FotoCreaDB.sln --no-restore --no-incremental --warnaserror --verbosity minimal
 ```
 
-Esito aggiornato: 101 test superati complessivamente; compilazione con zero avvisi ed errori.
+Esito aggiornato: 116 test superati complessivamente; compilazione con zero avvisi ed errori.
 Questa è una prova del flusso di notifiche, non un benchmark di lettura di 150.000
 foto. La gestione del log per file è un intervento separato e rimane un possibile
 collo di bottiglia; scansione, scritture SQLite e verifiche prima della

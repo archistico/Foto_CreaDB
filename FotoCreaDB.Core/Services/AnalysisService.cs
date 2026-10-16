@@ -27,16 +27,13 @@ namespace Foto_CreaDB2
             // Validate before opening/resetting the database.
             if (request.Paths == null || request.Paths.Length == 0)
                 throw new ArgumentException("Non è stato specificato alcun path da analizzare.", nameof(request));
-            if (request.CancellaDbSeEsiste)
+            // Own the normalized inputs before callbacks can change them.
+            string[] paths = new string[request.Paths.Length];
+            for (int i = 0; i < paths.Length; i++)
             {
-                foreach (string path in request.Paths)
-                {
-                    string full = System.IO.Path.GetFullPath(path);
-                    if (!System.IO.File.Exists(full) && !System.IO.Directory.Exists(full))
-                        throw new ArgumentException("Reset database rifiutato: path non valido o non accessibile: " + full, nameof(request));
-                    if ((System.IO.File.GetAttributes(full) & System.IO.FileAttributes.ReparsePoint) != 0)
-                        throw new ArgumentException("Reset database rifiutato: il path è un collegamento ignorato dalla scansione: " + full, nameof(request));
-                }
+                if (string.IsNullOrWhiteSpace(request.Paths[i]))
+                    throw new ArgumentException("Il path da analizzare non può essere vuoto.", nameof(request));
+                paths[i] = System.IO.Path.GetFullPath(request.Paths[i]);
             }
 
             ScanStatistics stats = new ScanStatistics();
@@ -46,12 +43,26 @@ namespace Foto_CreaDB2
 
             // Costruisci la config finale partendo dal file (se presente) e applicando gli override dalla request
             AppConfig config = fileConfig ?? new AppConfig();
-            config.Paths = request.Paths;
-            config.NomeDb = string.IsNullOrWhiteSpace(request.NomeDb) ? config.NomeDb : request.NomeDb;
+            config.Paths = paths;
+            config.NomeDb = System.IO.Path.GetFullPath(string.IsNullOrWhiteSpace(request.NomeDb) ? config.NomeDb : request.NomeDb);
             config.CancellaDbSeEsiste = request.CancellaDbSeEsiste;
             config.LogDettagliato = request.LogDettagliato;
             config.ProgressEvery = request.ProgressEvery > 0 ? request.ProgressEvery : config.ProgressEvery;
             config.VerboseDuplicates = request.VerboseDuplicates;
+
+            if (config.CancellaDbSeEsiste)
+            {
+                foreach (string full in config.Paths)
+                {
+                    if (!System.IO.File.Exists(full) && !System.IO.Directory.Exists(full))
+                        throw new ArgumentException("Reset database rifiutato: path non valido o non accessibile: " + full, nameof(request));
+                    if ((System.IO.File.GetAttributes(full) & System.IO.FileAttributes.ReparsePoint) != 0)
+                        throw new ArgumentException("Reset database rifiutato: il path è un collegamento ignorato dalla scansione: " + full, nameof(request));
+                    if (System.IO.File.Exists(full) && (!config.EstensioniPermesse.Contains(Utility.GetEstensione(full))
+                        || string.Equals(full, config.NomeDb, StringComparison.OrdinalIgnoreCase)))
+                        throw new ArgumentException("Reset database rifiutato: il file selezionato non è processabile: " + full, nameof(request));
+                }
+            }
 
             MetadataService metadataService = new MetadataService(config);
             HashService hashService = new HashService();
