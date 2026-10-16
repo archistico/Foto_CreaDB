@@ -24,6 +24,21 @@ namespace Foto_CreaDB2
                 throw new ArgumentNullException(nameof(request));
             }
 
+            // Validate before opening/resetting the database.
+            if (request.Paths == null || request.Paths.Length == 0)
+                throw new ArgumentException("Non è stato specificato alcun path da analizzare.", nameof(request));
+            if (request.CancellaDbSeEsiste)
+            {
+                foreach (string path in request.Paths)
+                {
+                    string full = System.IO.Path.GetFullPath(path);
+                    if (!System.IO.File.Exists(full) && !System.IO.Directory.Exists(full))
+                        throw new ArgumentException("Reset database rifiutato: path non valido o non accessibile: " + full, nameof(request));
+                    if ((System.IO.File.GetAttributes(full) & System.IO.FileAttributes.ReparsePoint) != 0)
+                        throw new ArgumentException("Reset database rifiutato: il path è un collegamento ignorato dalla scansione: " + full, nameof(request));
+                }
+            }
+
             ScanStatistics stats = new ScanStatistics();
 
             // Provare a caricare configurazione da file appsettings.json nella directory corrente
@@ -70,12 +85,17 @@ namespace Foto_CreaDB2
                 }
             }
 
-            ServiceCallbackHelper.Info(log, "Analisi completata.");
+            bool success = stats.TotaleErroriPath == 0 && stats.TotaleErroriFile == 0
+                && stats.TotaleErroriCartelle == 0 && stats.TotaleErroriDb == 0 && stats.TotaleErroriHash == 0;
+            string message = success ? "Analisi completata."
+                : "Analisi terminata con errori. Verificare il log prima di cancellare duplicati.";
+            if (success) ServiceCallbackHelper.Info(log, message);
+            else ServiceCallbackHelper.Warning(log, message);
 
             return new AnalysisResult
             {
-                Success = true,
-                Message = "Analisi completata.",
+                Success = success,
+                Message = message,
                 Statistics = stats
             };
         }

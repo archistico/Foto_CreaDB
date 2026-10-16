@@ -11,6 +11,9 @@
         /// </summary>
         public long TotalePathIniziali { get; set; }
 
+        /// <summary>Numero di percorsi iniziali non validi o non accessibili.</summary>
+        public long TotaleErroriPath { get; set; }
+
         /// <summary>
         /// Numero totale di cartelle visitate durante la scansione ricorsiva.
         /// </summary>

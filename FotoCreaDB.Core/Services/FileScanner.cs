@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace Foto_CreaDB2
 {
@@ -16,7 +17,7 @@ namespace Foto_CreaDB2
         private readonly HashService _hashService;
         private readonly Logger? _logger;
         private readonly ScanStatistics _stats;
-        private readonly string _currentScanToken;
+        private string _currentScanToken = string.Empty;
         private readonly IProgress<AnalysisProgress>? _progress;
         private readonly Action<ServiceLogMessage>? _log;
 
@@ -67,7 +68,6 @@ namespace Foto_CreaDB2
             _hashService = hashService ?? throw new ArgumentNullException(nameof(hashService));
             _logger = logger;
             _stats = stats ?? throw new ArgumentNullException(nameof(stats));
-            _currentScanToken = Guid.NewGuid().ToString("N");
             _progress = progress;
             _log = log;
         }
@@ -84,6 +84,7 @@ namespace Foto_CreaDB2
             }
 
             _stats.TotalePathIniziali = _config.Paths.Length;
+            _currentScanToken = Guid.NewGuid().ToString("N");
 
             _totalFilesToProcess = CountProcessableFiles();
             _processedFiles = 0;
@@ -102,7 +103,7 @@ namespace Foto_CreaDB2
                         _stats.TotaleFileTrovati++;
 
                         string estensione = Utility.GetEstensione(fullPath);
-                        if (_config.EstensioniPermesse.Contains(estensione))
+                        if (_config.EstensioniPermesse.Contains(estensione) && !IsReparsePoint(fullPath))
                         {
                             _stats.TotaleFileConEstensioneValida++;
                             ProcessFile(fullPath);
@@ -122,6 +123,7 @@ namespace Foto_CreaDB2
                 }
                 catch (Exception ex)
                 {
+                    _stats.TotaleErroriPath++;
                     _logger?.WriteError($"Errore durante l'analisi del path iniziale '{path}'", ex);
                     ServiceCallbackHelper.Error(_log, $"Errore durante l'analisi del path iniziale '{path}'", ex);
                 }
@@ -158,7 +160,7 @@ namespace Foto_CreaDB2
                     if (File.Exists(fullPath))
                     {
                         string estensione = Utility.GetEstensione(fullPath);
-                        if (_config.EstensioniPermesse.Contains(estensione))
+                        if (_config.EstensioniPermesse.Contains(estensione) && !IsReparsePoint(fullPath))
                         {
                             total++;
                         }
@@ -192,12 +194,13 @@ namespace Foto_CreaDB2
 
             try
             {
+                if (IsReparsePoint(targetDirectory)) return 0;
                 foreach (string fileName in System.IO.Directory.EnumerateFiles(targetDirectory))
                 {
                     try
                     {
                         string estensione = Utility.GetEstensione(fileName);
-                        if (_config.EstensioniPermesse.Contains(estensione))
+                        if (_config.EstensioniPermesse.Contains(estensione) && !IsReparsePoint(fileName))
                         {
                             total++;
                         }
@@ -243,6 +246,11 @@ namespace Foto_CreaDB2
         {
             try
             {
+                if (IsReparsePoint(targetDirectory))
+                {
+                    ServiceCallbackHelper.Warning(_log, "Cartella collegata ignorata: " + targetDirectory);
+                    return;
+                }
                 _stats.TotaleCartelleVisitate++;
 
                 foreach (string fileName in System.IO.Directory.EnumerateFiles(targetDirectory))
@@ -252,7 +260,7 @@ namespace Foto_CreaDB2
                         _stats.TotaleFileTrovati++;
 
                         string estensione = Utility.GetEstensione(fileName);
-                        if (_config.EstensioniPermesse.Contains(estensione))
+                        if (_config.EstensioniPermesse.Contains(estensione) && !IsReparsePoint(fileName))
                         {
                             _stats.TotaleFileConEstensioneValida++;
                             ProcessFile(fileName);
@@ -329,6 +337,8 @@ namespace Foto_CreaDB2
                 ExistingFotoInfo? existing = _repository.GetByPercorso(imagePath);
 
                 if (existing != null
+                    && existing.FileEsiste
+                    && existing.HashSha256.Length == 64 && existing.HashSha256.All(Uri.IsHexDigit)
                     && string.Equals(existing.DataFileModifica, dataFileModifica, StringComparison.Ordinal)
                     && existing.Dimensione == dimensione)
                 {
@@ -357,7 +367,7 @@ namespace Foto_CreaDB2
                 bool hashCalcolato = _hashService.TryCalculateHash(imagePath, foto, _logger, _stats);
                 if (!hashCalcolato)
                 {
-                    foto.noteErrore = "Hash non calcolato.";
+                    foto.noteErrore = Utility.AppendNote(foto.noteErrore, "Hash non calcolato.", 1000);
                 }
 
                 foto.CalcolaChiaviDerivate();
@@ -415,6 +425,12 @@ namespace Foto_CreaDB2
                 ReportProgress(imagePath);
             }
         }
+
+        /// <summary>
+        /// Verifica se un percorso è un collegamento o un altro reparse point.
+        /// </summary>
+        private static bool IsReparsePoint(string path) =>
+            (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
 
         /// <summary>
         /// Notifica lo stato di avanzamento corrente dell'analisi.

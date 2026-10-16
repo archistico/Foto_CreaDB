@@ -36,7 +36,7 @@ namespace FotoCreaDB.Tests.Integration.Analysis
                 });
 
             Assert.NotNull(result);
-            Assert.True(result.Success);
+            Assert.False(result.Success);
             Assert.True(File.Exists(dbPath));
         }
     }

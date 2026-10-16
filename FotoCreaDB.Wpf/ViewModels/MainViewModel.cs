@@ -262,7 +262,7 @@ namespace FotoCreaDB.Wpf.ViewModels
                 }
                 else
                 {
-                    StatusMessage = "Database non trovato.";
+                    StatusMessage = "Database non eliminato. Consultare il log.";
                 }
 
                 // update commands

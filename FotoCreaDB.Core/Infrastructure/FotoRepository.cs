@@ -171,31 +171,61 @@ namespace Foto_CreaDB2
         public int MarkMissingFilesForRoot(string rootPath, string currentScanToken)
         {
             string normalizedRoot = NormalizeRootPath(rootPath);
+            if (string.IsNullOrWhiteSpace(currentScanToken))
+                throw new ArgumentException("Token di scansione vuoto.", nameof(currentScanToken));
+            if (!Directory.Exists(normalizedRoot)) return 0;
 
+            var unseen = new List<(long Id, string Path)>();
             using (SQLiteCommand cmd = _conn.CreateCommand())
             {
                 cmd.CommandText =
-                    "UPDATE FOTO SET "
-                    + "  FILE_ESISTE = 0 "
-                    + "WHERE PERCORSO_COMPLETO LIKE @rootPrefix "
+                    "SELECT ID, PERCORSO_COMPLETO FROM FOTO "
+                    + "WHERE PERCORSO_COMPLETO LIKE @rootPrefix ESCAPE '!' "
                     + "  AND IFNULL(DATA_SCANSIONE, '') <> @data_scansione "
                     + "  AND FILE_ESISTE <> 0";
 
-                cmd.Parameters.AddWithValue("@rootPrefix", normalizedRoot + "%");
+                string prefix = normalizedRoot.Replace("!", "!!").Replace("%", "!%").Replace("_", "!_");
+                cmd.Parameters.AddWithValue("@rootPrefix", prefix + "%");
                 cmd.Parameters.AddWithValue("@data_scansione", Utility.Nz(currentScanToken));
 
-                return cmd.ExecuteNonQuery();
+                using SQLiteDataReader reader = cmd.ExecuteReader();
+                while (reader.Read())
+                    unseen.Add((reader.GetInt64(0), reader.GetString(1)));
             }
+
+            int missing = 0;
+            foreach (var item in unseen)
+            {
+                // Excluded, busy or inaccessible files are not necessarily absent.
+                if (!IsConfirmedMissing(item.Path)) continue;
+                using SQLiteCommand update = _conn.CreateCommand();
+                update.CommandText = "UPDATE FOTO SET FILE_ESISTE = 0 WHERE ID = @id "
+                    + "AND PERCORSO_COMPLETO = @path AND IFNULL(DATA_SCANSIONE, '') <> @scan AND FILE_ESISTE <> 0";
+                update.Parameters.AddWithValue("@id", item.Id);
+                update.Parameters.AddWithValue("@path", item.Path);
+                update.Parameters.AddWithValue("@scan", currentScanToken);
+                missing += update.ExecuteNonQuery();
+            }
+            return missing;
+        }
+
+        private static bool IsConfirmedMissing(string path)
+        {
+            try { File.GetAttributes(path); return false; }
+            catch (FileNotFoundException) { return true; }
+            catch (DirectoryNotFoundException) { return true; }
+            catch (IOException) { return false; }
+            catch (UnauthorizedAccessException) { return false; }
         }
 
         private string NormalizeRootPath(string rootPath)
         {
             if (string.IsNullOrWhiteSpace(rootPath))
             {
-                return "";
+                throw new ArgumentException("Percorso radice vuoto.", nameof(rootPath));
             }
 
-            string fullPath = Path.GetFullPath(rootPath).Trim();
+            string fullPath = Path.GetFullPath(rootPath);
 
             if (!fullPath.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal))
             {

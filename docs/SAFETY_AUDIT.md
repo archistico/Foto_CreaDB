@@ -1,5 +1,8 @@
 # Verifica della sicurezza della cancellazione — 16 ottobre 2026
 
+Per il controllo successivo e i risultati aggiornati vedere la
+[seconda ricerca di bug](SECOND_AUDIT.md).
+
 La verifica si concentra sul percorso scansione → database → gruppi di duplicati →
 cancellazione e sulla rimozione del database. Tutte le prove usano dati creati in
 cartelle temporanee. Il database e le foto dell'utente non sono stati usati.
