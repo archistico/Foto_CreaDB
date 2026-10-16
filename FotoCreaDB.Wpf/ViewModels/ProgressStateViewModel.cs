@@ -9,6 +9,33 @@
         private string _currentItem = string.Empty;
         private string _currentStep = string.Empty;
         private bool _isRunning;
+        private bool _isDiscoveringFiles;
+        private int _discoveredItems;
+
+        public bool IsDiscoveringFiles
+        {
+            get => _isDiscoveringFiles;
+            set
+            {
+                if (SetProperty(ref _isDiscoveringFiles, value))
+                {
+                    OnPropertyChanged(nameof(SummaryText));
+                    OnPropertyChanged(nameof(IsIndeterminate));
+                }
+            }
+        }
+
+        public int DiscoveredItems
+        {
+            get => _discoveredItems;
+            set
+            {
+                if (SetProperty(ref _discoveredItems, value))
+                    OnPropertyChanged(nameof(SummaryText));
+            }
+        }
+
+        public bool IsIndeterminate => IsRunning && (IsDiscoveringFiles || TotalItems <= 0);
 
         public string Title
         {
@@ -36,6 +63,7 @@
                 if (SetProperty(ref _totalItems, value))
                 {
                     OnPropertyChanged(nameof(SummaryText));
+                    OnPropertyChanged(nameof(IsIndeterminate));
                 }
             }
         }
@@ -73,13 +101,19 @@
         public bool IsRunning
         {
             get => _isRunning;
-            set => SetProperty(ref _isRunning, value);
+            set
+            {
+                if (SetProperty(ref _isRunning, value))
+                    OnPropertyChanged(nameof(IsIndeterminate));
+            }
         }
 
         public string SummaryText
         {
             get
             {
+                if (IsDiscoveringFiles)
+                    return CurrentStep + " " + DiscoveredItems.ToString("N0") + " file individuati";
                 if (TotalItems > 0)
                 {
                     return ProcessedItems + " / " + TotalItems + " (" + Percentage + "%)";
@@ -97,6 +131,8 @@
             Percentage = 0;
             CurrentItem = string.Empty;
             CurrentStep = string.Empty;
+            DiscoveredItems = 0;
+            IsDiscoveringFiles = false;
             IsRunning = false;
         }
     }

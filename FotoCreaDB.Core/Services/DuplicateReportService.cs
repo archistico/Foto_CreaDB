@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Diagnostics;
 
 namespace Foto_CreaDB2
 {
@@ -40,7 +41,7 @@ namespace Foto_CreaDB2
 
             using (DatabaseManager dbManager = new DatabaseManager(request.NomeDb, false))
             {
-                dbManager.Initialize();
+                dbManager.OpenExistingReadOnly();
 
                 if (dbManager.Connection == null)
                 {
@@ -64,55 +65,74 @@ namespace Foto_CreaDB2
 
             int totalGroups = decisions.Count;
             int filesToDelete = CountFilesToDelete(decisions);
-            long bytesToDelete = 0;
+            long bytesToDelete = CountBytesToDelete(decisions);
 
             ServiceCallbackHelper.ReportProgress(
                 progress,
                 new DuplicateReportProgress
                 {
-                    CurrentStep = "Report completato",
-                    ProcessedGroups = totalGroups,
-                    TotalGroups = totalGroups
+                    CurrentStep = "Preparazione riepilogo",
+                    ProcessedGroups = 0,
+                    TotalGroups = 0
                 });
 
             if (decisions.Count > 0)
             {
+                ServiceCallbackHelper.Info(log, "Gruppi duplicati: " + totalGroups
+                    + " - File candidati alla cancellazione: " + filesToDelete
+                    + " - Spazio occupato dai duplicati: " + FormatBytes(bytesToDelete));
+            }
+
+            if (decisions.Count > 0 && request.VerboseDuplicates && log != null)
+            {
+                ServiceCallbackHelper.ReportProgress(progress, new DuplicateReportProgress
+                {
+                    CurrentStep = "Scrittura dettagli", TotalGroups = totalGroups
+                });
+                var detailsClock = Stopwatch.StartNew();
+                int processedGroups = 0;
                 ServiceCallbackHelper.Info(log, "Report duplicati: dettagli gruppi e file:");
 
                 foreach (DuplicateBinaryDecision decision in decisions)
                 {
-                    try
+                    ServiceCallbackHelper.Info(log, "Gruppo SHA-256: " + decision.HashSha256);
+                    string keepPath = decision.FileDaTenere?.PercorsoCompleto ?? string.Empty;
+                    string keepSize = FormatBytes(decision.FileDaTenere?.Dimensione ?? decision.Dimensione);
+
+                    ServiceCallbackHelper.Info(log, "Tenere (" + keepSize + "): " + keepPath);
+
+                    if (decision.FileDaEliminare != null)
                     {
-                        string keepPath = decision.FileDaTenere?.PercorsoCompleto ?? string.Empty;
-                        string keepSize = FormatBytes(decision.FileDaTenere?.Dimensione ?? decision.Dimensione);
-
-                        ServiceCallbackHelper.Info(log, "Tenere (" + keepSize + "): " + keepPath);
-
-                        if (decision.FileDaEliminare != null)
+                        foreach (DuplicateBinaryCandidate dup in decision.FileDaEliminare)
                         {
-                            foreach (DuplicateBinaryCandidate dup in decision.FileDaEliminare)
-                            {
-                                string dupPath = dup?.PercorsoCompleto ?? string.Empty;
-                                long dupBytes = dup?.Dimensione ?? 0;
-                                string dupSize = FormatBytes(dupBytes);
+                            string dupPath = dup?.PercorsoCompleto ?? string.Empty;
+                            long dupBytes = dup?.Dimensione ?? 0;
+                            string dupSize = FormatBytes(dupBytes);
 
-                                ServiceCallbackHelper.Info(log, "    Cancellare (" + dupSize + "): " + dupPath);
-                                bytesToDelete += dupBytes;
-                            }
+                            ServiceCallbackHelper.Info(log, "    Cancellare (" + dupSize + "): " + dupPath);
                         }
                     }
-                    catch
+                    processedGroups++;
+                    if (processedGroups < totalGroups && detailsClock.ElapsedMilliseconds >= 250)
                     {
-                        // Non interrompere il report per problemi di sola formattazione del log
+                        ServiceCallbackHelper.ReportProgress(progress, new DuplicateReportProgress
+                        {
+                            CurrentStep = "Scrittura dettagli", ProcessedGroups = processedGroups, TotalGroups = totalGroups
+                        });
+                        detailsClock.Restart();
                     }
                 }
             }
-            else
+            else if (decisions.Count == 0)
             {
                 ServiceCallbackHelper.Info(log, "Nessun gruppo duplicati trovato.");
             }
 
             ServiceCallbackHelper.Info(log, "Report duplicati caricato.");
+            ServiceCallbackHelper.ReportProgress(progress, new DuplicateReportProgress
+            {
+                CurrentStep = "Report completato", ProcessedGroups = totalGroups, TotalGroups = totalGroups
+            });
 
             return new DuplicateReportResult
             {
@@ -148,6 +168,18 @@ namespace Foto_CreaDB2
             }
 
             return total;
+        }
+
+        private static long CountBytesToDelete(List<DuplicateBinaryDecision> decisions)
+        {
+            long bytes = 0;
+            foreach (var decision in decisions)
+            {
+                if (decision.FileDaEliminare == null) continue;
+                foreach (var candidate in decision.FileDaEliminare)
+                    bytes += candidate?.Dimensione ?? 0;
+            }
+            return bytes;
         }
 
         private static string FormatBytes(long bytes)

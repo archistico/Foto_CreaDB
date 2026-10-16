@@ -123,6 +123,7 @@
                                     Style="{StaticResource SecondaryButtonStyle}"
                                     Command="{Binding BrowseFotoPathCommand}" />
                             <TextBox Margin="0"
+                                     IsReadOnly="{Binding IsBusy}"
                                      Text="{Binding FotoPath, UpdateSourceTrigger=PropertyChanged}" />
                         </DockPanel>
 
@@ -142,11 +143,23 @@
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Command="{Binding DeleteAnalysisDatabaseCommand}" />
                             <TextBox Margin="0"
+                                     IsReadOnly="{Binding IsBusy}"
                                      Text="{Binding DatabasePath, UpdateSourceTrigger=PropertyChanged}" />
                         </DockPanel>
 
-                        <CheckBox Content="Mostra dettagli duplicati"
-                                  IsChecked="{Binding VerboseDuplicates}" />
+                        <CheckBox Content="Mostra elenco duplicati nel log"
+                                  IsChecked="{Binding VerboseDuplicates}"
+                                  ToolTip="Nel prossimo report o riepilogo prima della cancellazione, mostra i percorsi da conservare e i candidati da eliminare. Su raccolte grandi può produrre molte righe.">
+                            <CheckBox.Style>
+                                <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsBusy}" Value="True">
+                                            <Setter Property="IsEnabled" Value="False" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </CheckBox.Style>
+                        </CheckBox>
 
                         <TextBlock Text="Azioni"
                                    Style="{StaticResource CaptionTextStyle}" />
@@ -170,14 +183,14 @@
 
                         <TextBlock Text="Gruppi duplicati trovati"
                                    Style="{StaticResource CaptionTextStyle}" />
-                        <TextBlock Text="{Binding LastDuplicateGroupsCount}"
+                        <TextBlock Text="{Binding LastDuplicateGroupsCount, TargetNullValue=—}"
                                    FontSize="22"
                                    FontWeight="SemiBold"
                                    Margin="0,0,0,12" />
 
                         <TextBlock Text="File candidati alla cancellazione"
                                    Style="{StaticResource CaptionTextStyle}" />
-                        <TextBlock Text="{Binding LastFilesToDeleteCount}"
+                        <TextBlock Text="{Binding LastFilesToDeleteCount, TargetNullValue=—}"
                                    FontSize="22"
                                    FontWeight="SemiBold"
                                    Margin="0,0,0,12" />
@@ -207,7 +220,8 @@
                                    Style="{StaticResource SectionTitleStyle}" />
                         <TextBlock Text="{Binding AnalysisState.SummaryText}"
                                    Style="{StaticResource CaptionTextStyle}" />
-                        <ProgressBar Value="{Binding AnalysisState.Percentage}" />
+                        <ProgressBar Value="{Binding AnalysisState.Percentage}"
+                                     IsIndeterminate="{Binding AnalysisState.IsIndeterminate}" />
                         <TextBlock Text="{Binding AnalysisState.CurrentItem}"
                                    TextWrapping="Wrap" />
                     </StackPanel>
@@ -220,7 +234,8 @@
                                    Style="{StaticResource SectionTitleStyle}" />
                         <TextBlock Text="{Binding ReportState.SummaryText}"
                                    Style="{StaticResource CaptionTextStyle}" />
-                        <ProgressBar Value="{Binding ReportState.Percentage}" />
+                        <ProgressBar Value="{Binding ReportState.Percentage}"
+                                     IsIndeterminate="{Binding ReportState.IsIndeterminate}" />
                         <TextBlock Text="{Binding ReportState.CurrentStep}"
                                    TextWrapping="Wrap" />
                     </StackPanel>

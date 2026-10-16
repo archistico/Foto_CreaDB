@@ -151,7 +151,8 @@ namespace Foto_CreaDB2
                 new DuplicateReportRequest
                 {
                     NomeDb = config.NomeDb,
-                    VerboseDuplicates = config.VerboseDuplicates
+                    // Console details use the dedicated formatter below.
+                    VerboseDuplicates = false
                 },
                 progress: adapter.CreateReportProgress(),
                 log: adapter.OnLog);
@@ -160,7 +161,7 @@ namespace Foto_CreaDB2
             logger.WriteLine("Duplicati trovati                : " + result.DuplicateGroupsCount);
             logger.WriteLine("File candidati alla cancellazione: " + result.FilesToDeleteCount);
 
-            if (config.VerboseDuplicates && result.Decisions != null && result.Decisions.Count > 0)
+            if (config.VerboseDuplicates && result.Decisions.Count > 0)
             {
                 DuplicateBinaryReportWriter reportWriter = new DuplicateBinaryReportWriter();
                 reportWriter.Write(result.Decisions);
@@ -184,7 +185,8 @@ namespace Foto_CreaDB2
                 new DuplicateReportRequest
                 {
                     NomeDb = config.NomeDb,
-                    VerboseDuplicates = config.VerboseDuplicates
+                    // Console details use the dedicated formatter below.
+                    VerboseDuplicates = false
                 },
                 progress: adapter.CreateReportProgress(),
                 log: adapter.OnLog);
@@ -193,12 +195,11 @@ namespace Foto_CreaDB2
             logger.WriteLine("Duplicati trovati                : " + reportResult.DuplicateGroupsCount);
             logger.WriteLine("File candidati alla cancellazione: " + reportResult.FilesToDeleteCount);
 
-            if (config.VerboseDuplicates && reportResult.Decisions != null && reportResult.Decisions.Count > 0)
+            if (config.VerboseDuplicates && reportResult.Decisions.Count > 0)
             {
                 DuplicateBinaryReportWriter reportWriter = new DuplicateBinaryReportWriter();
                 reportWriter.Write(reportResult.Decisions);
             }
-
             if (reportResult.FilesToDeleteCount <= 0)
             {
                 logger.WriteLine("Nessun file da cancellare.");
@@ -223,7 +224,8 @@ namespace Foto_CreaDB2
                     new DeletionRequest
                     {
                         NomeDb = config.NomeDb,
-                        VerboseDuplicates = config.VerboseDuplicates
+                        // The preview above already displayed the requested details.
+                        VerboseDuplicates = false
                     },
                     progress: adapter.CreateDeletionProgress(),
                     log: adapter.OnLog);

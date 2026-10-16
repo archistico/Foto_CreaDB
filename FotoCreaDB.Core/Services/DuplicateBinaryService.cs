@@ -42,12 +42,6 @@ namespace Foto_CreaDB2
             {
                 List<DuplicateBinaryCandidate> candidates = hashGroup.ToList();
 
-                //List<List<DuplicateBinaryCandidate>> compatibleSubgroups =
-                //    new List<List<DuplicateBinaryCandidate>>
-                //    {
-                //        candidates
-                //    };
-
                 List<List<DuplicateBinaryCandidate>> compatibleSubgroups =
                     SplitIntoCompatibleSubgroups(candidates);
 
@@ -97,93 +91,52 @@ namespace Foto_CreaDB2
         private List<List<DuplicateBinaryCandidate>> SplitIntoCompatibleSubgroups(List<DuplicateBinaryCandidate> candidates)
         {
             List<List<DuplicateBinaryCandidate>> result = new List<List<DuplicateBinaryCandidate>>();
+            var bySize = new Dictionary<long, CompatibleGroups>();
 
             foreach (DuplicateBinaryCandidate current in candidates)
             {
-                bool inserted = false;
-
-                for (int i = 0; i < result.Count; i++)
+                bool hasDate = !string.IsNullOrWhiteSpace(current.DataScatto);
+                if (!bySize.TryGetValue(current.Dimensione, out var groups))
                 {
-                    if (CanFitIntoGroup(current, result[i]))
-                    {
-                        result[i].Add(current);
-                        inserted = true;
-                        break;
-                    }
+                    var first = new List<DuplicateBinaryCandidate> { current };
+                    groups = new CompatibleGroups(first);
+                    bySize.Add(current.Dimensione, groups);
+                    if (hasDate) groups.ByDate.Add(current.DataScatto, first);
+                    result.Add(first);
+                    continue;
                 }
 
-                if (!inserted)
+                // Preserve the original first-compatible-group policy. A missing
+                // date always fits the first group with this size; the first
+                // non-empty date establishes its compatibility constraint.
+                if (!hasDate)
                 {
-                    result.Add(new List<DuplicateBinaryCandidate> { current });
+                    groups.First.Add(current);
+                }
+                else if (groups.ByDate.TryGetValue(current.DataScatto, out var matching))
+                {
+                    matching.Add(current);
+                }
+                else if (groups.ByDate.Count == 0)
+                {
+                    groups.First.Add(current);
+                    groups.ByDate.Add(current.DataScatto, groups.First);
+                }
+                else
+                {
+                    var next = new List<DuplicateBinaryCandidate> { current };
+                    groups.ByDate.Add(current.DataScatto, next);
+                    result.Add(next);
                 }
             }
 
             return result;
         }
 
-        /// <summary>
-        /// Verifica se un candidato può essere aggiunto a un gruppo già esistente
-        /// senza violare le regole di compatibilità.
-        /// </summary>
-        /// <param name="candidate">
-        /// File da valutare.
-        /// </param>
-        /// <param name="group">
-        /// Gruppo nel quale si tenta di inserire il file.
-        /// </param>
-        /// <returns>
-        /// <c>true</c> se il file è compatibile con tutti gli elementi del gruppo;
-        /// altrimenti <c>false</c>.
-        /// </returns>
-        private bool CanFitIntoGroup(DuplicateBinaryCandidate candidate, List<DuplicateBinaryCandidate> group)
+        private sealed class CompatibleGroups(List<DuplicateBinaryCandidate> first)
         {
-            if (group == null || group.Count == 0)
-            {
-                return true;
-            }
-
-            foreach (DuplicateBinaryCandidate existing in group)
-            {
-                if (!AreCompatible(candidate, existing))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// Confronta due file e stabilisce se possono essere considerati
-        /// realmente duplicati all'interno dello stesso gruppo.
-        /// </summary>
-        /// <param name="a">Primo file da confrontare.</param>
-        /// <param name="b">Secondo file da confrontare.</param>
-        /// <returns>
-        /// <c>true</c> se i due file sono compatibili secondo hash, dimensione
-        /// e, quando presente su entrambi, data di scatto; altrimenti <c>false</c>.
-        /// </returns>
-        private bool AreCompatible(DuplicateBinaryCandidate a, DuplicateBinaryCandidate b)
-        {
-            if (!string.Equals(a.HashSha256, b.HashSha256, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            if (a.Dimensione != b.Dimensione)
-            {
-                return false;
-            }
-
-            bool aHasDataScatto = !string.IsNullOrWhiteSpace(a.DataScatto);
-            bool bHasDataScatto = !string.IsNullOrWhiteSpace(b.DataScatto);
-
-            if (aHasDataScatto && bHasDataScatto)
-            {
-                return string.Equals(a.DataScatto, b.DataScatto, StringComparison.Ordinal);
-            }
-
-            return true;
+            public List<DuplicateBinaryCandidate> First { get; } = first;
+            public Dictionary<string, List<DuplicateBinaryCandidate>> ByDate { get; } = new(StringComparer.Ordinal);
         }
 
         /// <summary>

@@ -22,9 +22,9 @@ namespace FotoCreaDB.Wpf.ViewModels
         private bool _verboseDuplicates;
         private bool _isBusy;
         private string _statusMessage = "Pronto";
-        private int _lastDuplicateGroupsCount;
-        private int _lastFilesToDeleteCount;
-        private string _lastFilesToDeleteSizeFormatted = "0 B";
+        private int? _lastDuplicateGroupsCount;
+        private int? _lastFilesToDeleteCount;
+        private string _lastFilesToDeleteSizeFormatted = "—";
 
         public MainViewModel()
         {
@@ -174,6 +174,7 @@ namespace FotoCreaDB.Wpf.ViewModels
             {
                 if (SetProperty(ref _databasePath, value))
                 {
+                    InvalidateReport();
                     CommandManager.InvalidateRequerySuggested();
                 }
             }
@@ -203,13 +204,13 @@ namespace FotoCreaDB.Wpf.ViewModels
             set => SetProperty(ref _statusMessage, value);
         }
 
-        public int LastDuplicateGroupsCount
+        public int? LastDuplicateGroupsCount
         {
             get => _lastDuplicateGroupsCount;
             set => SetProperty(ref _lastDuplicateGroupsCount, value);
         }
 
-        public int LastFilesToDeleteCount
+        public int? LastFilesToDeleteCount
         {
             get => _lastFilesToDeleteCount;
             set => SetProperty(ref _lastFilesToDeleteCount, value);
@@ -219,6 +220,14 @@ namespace FotoCreaDB.Wpf.ViewModels
         {
             get => _lastFilesToDeleteSizeFormatted;
             set => SetProperty(ref _lastFilesToDeleteSizeFormatted, value);
+        }
+
+        private void InvalidateReport()
+        {
+            LastDuplicateGroupsCount = null;
+            LastFilesToDeleteCount = null;
+            LastFilesToDeleteSizeFormatted = "—";
+            ReportState.Reset("Report");
         }
 
         private bool CanDeleteDatabase()
@@ -258,6 +267,7 @@ namespace FotoCreaDB.Wpf.ViewModels
                 bool deleted = DatabaseFileManager.DeleteDatabaseFiles(full, _bridge.OnLog);
                 if (deleted)
                 {
+                    InvalidateReport();
                     StatusMessage = "Database cancellato.";
                 }
                 else
@@ -502,6 +512,7 @@ namespace FotoCreaDB.Wpf.ViewModels
 
         private async Task RunAnalyzeAsync()
         {
+            InvalidateReport();
             IsBusy = true;
             StatusMessage = "Analisi in corso...";
             _bridge.ClearLogs();
@@ -548,6 +559,9 @@ namespace FotoCreaDB.Wpf.ViewModels
 
         private async Task RunReportAsync()
         {
+            string selectedDatabase = DatabasePath;
+            bool verboseDuplicates = VerboseDuplicates;
+            InvalidateReport();
             IsBusy = true;
             StatusMessage = "Report in corso...";
             _bridge.ClearLogs();
@@ -555,16 +569,22 @@ namespace FotoCreaDB.Wpf.ViewModels
 
             try
             {
+                var request = new DuplicateReportRequest
+                {
+                    NomeDb = Path.GetFullPath(selectedDatabase),
+                    VerboseDuplicates = verboseDuplicates
+                };
                 DuplicateReportResult result = await Task.Run(() =>
                     _reportService.Run(
-                        new DuplicateReportRequest
-                        {
-                            NomeDb = DatabasePath,
-                            VerboseDuplicates = VerboseDuplicates
-                        },
+                        request,
                         _bridge.CreateReportProgress(),
                         _bridge.OnLog));
 
+                if (!string.Equals(selectedDatabase, DatabasePath, System.StringComparison.Ordinal))
+                {
+                    StatusMessage = "Database cambiato. Generare un nuovo report.";
+                    return;
+                }
                 LastDuplicateGroupsCount = result.DuplicateGroupsCount;
                 LastFilesToDeleteCount = result.FilesToDeleteCount;
                 LastFilesToDeleteSizeFormatted = FormatBytes(result.FilesToDeleteSize);
@@ -588,6 +608,7 @@ namespace FotoCreaDB.Wpf.ViewModels
             finally
             {
                 _bridge.CompleteReport();
+                if (!string.Equals(selectedDatabase, DatabasePath, System.StringComparison.Ordinal)) InvalidateReport();
                 IsBusy = false;
             }
         }
@@ -664,6 +685,7 @@ namespace FotoCreaDB.Wpf.ViewModels
             finally
             {
                 _bridge.CompleteDeletion();
+                InvalidateReport();
                 IsBusy = false;
             }
         }

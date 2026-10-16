@@ -54,6 +54,8 @@ namespace FotoCreaDB.Wpf.Adapters
                 _analysisProgress.Complete();
                 _analysisProgress = new();
                 AnalysisState.Reset("Analisi");
+                AnalysisState.IsDiscoveringFiles = true;
+                AnalysisState.CurrentStep = "Ricerca dei file…";
                 AnalysisState.IsRunning = true;
                 _progressTimer.Start();
             });
@@ -163,11 +165,15 @@ namespace FotoCreaDB.Wpf.Adapters
         private void ApplyAnalysis(AnalysisProgress? progress)
         {
             if (progress == null) return;
+            bool discovering = progress.Phase == AnalysisPhase.DiscoveringFiles;
+            AnalysisState.IsDiscoveringFiles = discovering;
+            AnalysisState.DiscoveredItems = progress.DiscoveredFiles;
             AnalysisState.ProcessedItems = progress.ProcessedFiles;
             AnalysisState.TotalItems = progress.TotalFiles;
             AnalysisState.Percentage = progress.Percentage;
-            AnalysisState.CurrentItem = progress.CurrentFile ?? string.Empty;
-            AnalysisState.CurrentStep = "Analisi file";
+            AnalysisState.CurrentItem = (discovering ? progress.CurrentDirectory : progress.CurrentFile) ?? string.Empty;
+            AnalysisState.CurrentStep = discovering ? "Ricerca dei file…"
+                : progress.TotalFiles == 0 && progress.ProcessedFiles == 0 ? "Nessun file da analizzare." : "Analisi file";
         }
 
         private void ApplyReport(DuplicateReportProgress? progress)

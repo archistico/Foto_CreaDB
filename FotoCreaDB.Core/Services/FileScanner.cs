@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Diagnostics;
 
 namespace Foto_CreaDB2
 {
@@ -23,6 +24,9 @@ namespace Foto_CreaDB2
 
         private int _totalFilesToProcess;
         private int _processedFiles;
+        private int _discoveredFiles;
+        private string _currentDiscoveryDirectory = string.Empty;
+        private long _lastDiscoveryReportTimestamp;
 
         /// <summary>
         /// Inizializza una nuova istanza dello scanner con tutti i servizi necessari alla scansione.
@@ -86,8 +90,13 @@ namespace Foto_CreaDB2
             _stats.TotalePathIniziali = _config.Paths.Length;
             _currentScanToken = Guid.NewGuid().ToString("N");
 
-            _totalFilesToProcess = CountProcessableFiles();
             _processedFiles = 0;
+            _totalFilesToProcess = 0;
+            _discoveredFiles = 0;
+            _currentDiscoveryDirectory = string.Empty;
+            ReportDiscovery(null, true);
+            _totalFilesToProcess = CountProcessableFiles();
+            ReportDiscovery(null, true);
 
             ServiceCallbackHelper.Info(_log, "Conteggio file da analizzare completato: " + _totalFilesToProcess);
             ReportProgress(null);
@@ -157,12 +166,16 @@ namespace Foto_CreaDB2
 
                     string fullPath = Path.GetFullPath(path);
 
+                    ReportDiscovery(fullPath, true);
                     if (File.Exists(fullPath))
                     {
+                        ReportDiscovery(Path.GetDirectoryName(fullPath), true);
                         string estensione = Utility.GetEstensione(fullPath);
                         if (_config.EstensioniPermesse.Contains(estensione) && !IsReparsePoint(fullPath))
                         {
                             total++;
+                            _discoveredFiles++;
+                            ReportDiscovery(Path.GetDirectoryName(fullPath));
                         }
                     }
                     else if (System.IO.Directory.Exists(fullPath))
@@ -194,6 +207,7 @@ namespace Foto_CreaDB2
 
             try
             {
+                ReportDiscovery(targetDirectory, true);
                 if (IsReparsePoint(targetDirectory)) return 0;
                 foreach (string fileName in System.IO.Directory.EnumerateFiles(targetDirectory))
                 {
@@ -203,6 +217,8 @@ namespace Foto_CreaDB2
                         if (_config.EstensioniPermesse.Contains(estensione) && !IsReparsePoint(fileName))
                         {
                             total++;
+                            _discoveredFiles++;
+                            ReportDiscovery(targetDirectory);
                         }
                     }
                     catch
@@ -431,6 +447,22 @@ namespace Foto_CreaDB2
         /// </summary>
         private static bool IsReparsePoint(string path) =>
             (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+
+        private void ReportDiscovery(string? directory, bool force = false)
+        {
+            if (_progress == null) return;
+            if (directory != null) _currentDiscoveryDirectory = directory;
+            // Avoid allocating a snapshot for every file during fast enumeration.
+            // Directory entry is forced so a slow directory can be shown before I/O.
+            if (!force && Stopwatch.GetElapsedTime(_lastDiscoveryReportTimestamp).TotalMilliseconds < 250) return;
+            _lastDiscoveryReportTimestamp = Stopwatch.GetTimestamp();
+            ServiceCallbackHelper.ReportProgress(_progress, new AnalysisProgress
+            {
+                Phase = AnalysisPhase.DiscoveringFiles,
+                DiscoveredFiles = _discoveredFiles,
+                CurrentDirectory = _currentDiscoveryDirectory
+            });
+        }
 
         /// <summary>
         /// Notifica lo stato di avanzamento corrente dell'analisi.

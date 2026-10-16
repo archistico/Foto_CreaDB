@@ -45,13 +45,32 @@ namespace Foto_CreaDB2
             CreateIndexes();
         }
 
+        /// <summary>Opens an existing compatible database without creating or migrating it.</summary>
+        public void OpenExistingReadOnly()
+        {
+            if (_cancellaDbSeEsiste)
+                throw new InvalidOperationException("Il report non può azzerare il database.");
+            CreateConnection(readOnly: true);
+            try
+            {
+                using var command = GetOpenConnection().CreateCommand();
+                command.CommandText = "SELECT ID, PERCORSO_COMPLETO, HASH_SHA256, DIMENSIONE, "
+                    + "DATA_FILE_MODIFICA, DATA_SCATTO, FILE_ESISTE FROM FOTO LIMIT 0";
+                using var reader = command.ExecuteReader();
+            }
+            catch (SQLiteException ex)
+            {
+                throw new InvalidDataException("Database non compatibile con il report. Se è un database FotoCreaDB precedente, eseguire l'analisi per aggiornarlo.", ex);
+            }
+        }
+
         /// <summary>
         /// Crea e apre la connessione SQLite, preparando anche la cartella del database se necessario.
         /// </summary>
         /// <exception cref="Exception">
         /// Generata se si verifica un errore durante la creazione o l'apertura del database.
         /// </exception>
-        private void CreateConnection()
+        private void CreateConnection(bool readOnly = false)
         {
             try
             {
@@ -61,12 +80,12 @@ namespace Foto_CreaDB2
                 }
 
                 string? directoryName = Path.GetDirectoryName(Path.GetFullPath(_nomeDb));
-                if (!string.IsNullOrWhiteSpace(directoryName) && !System.IO.Directory.Exists(directoryName))
+                if (!readOnly && !string.IsNullOrWhiteSpace(directoryName) && !System.IO.Directory.Exists(directoryName))
                 {
                     System.IO.Directory.CreateDirectory(directoryName);
                 }
 
-                if (File.Exists(_nomeDb) && _cancellaDbSeEsiste)
+                if (!readOnly && File.Exists(_nomeDb) && _cancellaDbSeEsiste)
                 {
                     DatabaseFileManager.DeleteVerifiedDatabase(_nomeDb);
                 }
@@ -76,7 +95,9 @@ namespace Foto_CreaDB2
                     DataSource = _nomeDb,
                     Version = 3,
                     ForeignKeys = true,
-                    Pooling = false
+                    Pooling = false,
+                    ReadOnly = readOnly,
+                    FailIfMissing = readOnly
                 };
                 Connection = new SQLiteConnection(connectionString.ConnectionString);
 

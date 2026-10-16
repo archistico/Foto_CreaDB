@@ -14,6 +14,8 @@ public class WpfServiceBridgeProgressTests
         {
             using var bridge = new WpfServiceBridge();
             bridge.ResetAnalysis();
+            Assert.True(bridge.AnalysisState.IsIndeterminate);
+            Assert.Contains("Ricerca dei file", bridge.AnalysisState.SummaryText);
             var progress = bridge.CreateAnalysisProgress();
             int posted = 0;
             int publications = 0;
@@ -50,6 +52,7 @@ public class WpfServiceBridgeProgressTests
 
                 Assert.Equal(1, publications);
                 Assert.Equal(100, bridge.AnalysisState.Percentage);
+                Assert.False(bridge.AnalysisState.IsIndeterminate);
                 Assert.Equal("last.jpg", bridge.AnalysisState.CurrentItem);
                 // The operation, not its counters, determines when it has ended.
                 Assert.True(bridge.AnalysisState.IsRunning);
@@ -166,6 +169,71 @@ public class WpfServiceBridgeProgressTests
 
             Assert.Equal(0, bridge.AnalysisState.ProcessedItems);
             Assert.Empty(bridge.LogMessages);
+        });
+    }
+
+    [Fact]
+    public void Discovery_ShowsCountAndFolderUntilAnalysisHasKnownTotal()
+    {
+        OnSta(() =>
+        {
+            using var bridge = new WpfServiceBridge();
+            bridge.ResetAnalysis();
+            var progress = bridge.CreateAnalysisProgress();
+            progress.Report(new AnalysisProgress
+            {
+                Phase = AnalysisPhase.DiscoveringFiles, DiscoveredFiles = 23_450,
+                CurrentDirectory = @"C:\Photos\2024"
+            });
+            PumpUntil(() => bridge.AnalysisState.DiscoveredItems == 23_450);
+
+            Assert.True(bridge.AnalysisState.IsIndeterminate);
+            Assert.Equal(0, bridge.AnalysisState.TotalItems);
+            Assert.Equal(0, bridge.AnalysisState.ProcessedItems);
+            Assert.Contains((23_450).ToString("N0"), bridge.AnalysisState.SummaryText);
+            Assert.Contains("file individuati", bridge.AnalysisState.SummaryText);
+            Assert.DoesNotContain("%", bridge.AnalysisState.SummaryText);
+            Assert.Equal(@"C:\Photos\2024", bridge.AnalysisState.CurrentItem);
+
+            progress.Report(new AnalysisProgress { ProcessedFiles = 38_200, TotalFiles = 150_000, CurrentFile = "photo.jpg" });
+            PumpUntil(() => bridge.AnalysisState.ProcessedItems == 38_200);
+
+            Assert.False(bridge.AnalysisState.IsDiscoveringFiles);
+            Assert.False(bridge.AnalysisState.IsIndeterminate);
+            Assert.Equal(150_000, bridge.AnalysisState.TotalItems);
+            Assert.Equal(25, bridge.AnalysisState.Percentage);
+            Assert.Equal("photo.jpg", bridge.AnalysisState.CurrentItem);
+            Assert.Contains("25%", bridge.AnalysisState.SummaryText);
+            bridge.CompleteAnalysis();
+        });
+    }
+
+    [Fact]
+    public void DiscoveryCompletion_StopsAnimationAndPreservesPartialCount()
+    {
+        OnSta(() =>
+        {
+            using var bridge = new WpfServiceBridge();
+            bridge.ResetAnalysis();
+            var progress = bridge.CreateAnalysisProgress();
+            progress.Report(new AnalysisProgress { Phase = AnalysisPhase.DiscoveringFiles, DiscoveredFiles = 42 });
+
+            bridge.CompleteAnalysis();
+
+            Assert.Equal(42, bridge.AnalysisState.DiscoveredItems);
+            Assert.False(bridge.AnalysisState.IsIndeterminate);
+            Assert.False(bridge.AnalysisState.IsRunning);
+            progress.Report(new AnalysisProgress { Phase = AnalysisPhase.DiscoveringFiles, DiscoveredFiles = 99 });
+            PumpFor(TimeSpan.FromMilliseconds(350));
+            Assert.Equal(42, bridge.AnalysisState.DiscoveredItems);
+            Assert.DoesNotContain("%", bridge.AnalysisState.SummaryText);
+
+            bridge.ResetAnalysis();
+            Assert.Equal(0, bridge.AnalysisState.DiscoveredItems);
+            bridge.CreateAnalysisProgress().Report(new AnalysisProgress());
+            bridge.CompleteAnalysis();
+            Assert.False(bridge.AnalysisState.IsIndeterminate);
+            Assert.Contains("Nessun file", bridge.AnalysisState.SummaryText);
         });
     }
 

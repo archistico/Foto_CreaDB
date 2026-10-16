@@ -6,6 +6,17 @@ namespace FotoCreaDB.Tests.Unit.Utilities
     public class AnalysisProgressTests
     {
         [Fact]
+        public void Percentage_DuringDiscovery_DoesNotShowPercentage()
+        {
+            var progress = new AnalysisProgress
+            {
+                Phase = AnalysisPhase.DiscoveringFiles,
+                DiscoveredFiles = 50, ProcessedFiles = 25, TotalFiles = 100
+            };
+            Assert.Equal(0, progress.Percentage);
+        }
+
+        [Fact]
         public void Percentage_WithZeroTotal_ReturnsZero()
         {
             AnalysisProgress progress = new AnalysisProgress

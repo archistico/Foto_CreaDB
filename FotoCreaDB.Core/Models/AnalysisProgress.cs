@@ -5,6 +5,15 @@
     /// </summary>
     public class AnalysisProgress
     {
+        /// <summary>Fase corrente. I chiamanti esistenti descrivono l'analisi.</summary>
+        public AnalysisPhase Phase { get; set; } = AnalysisPhase.AnalyzingFiles;
+
+        /// <summary>File processabili individuati durante il conteggio preliminare.</summary>
+        public int DiscoveredFiles { get; set; }
+
+        /// <summary>Cartella corrente durante la ricerca dei file.</summary>
+        public string? CurrentDirectory { get; set; }
+
         /// <summary>
         /// Numero di file già analizzati.
         /// </summary>
@@ -28,7 +37,7 @@
         {
             get
             {
-                if (TotalFiles <= 0)
+                if (Phase == AnalysisPhase.DiscoveringFiles || TotalFiles <= 0)
                 {
                     return 0;
                 }
