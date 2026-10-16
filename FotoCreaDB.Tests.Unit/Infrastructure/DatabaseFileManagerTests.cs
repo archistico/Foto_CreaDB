@@ -19,7 +19,8 @@ namespace FotoCreaDB.Tests.Unit.Infrastructure
                 string shm = db + "-shm";
                 string journal = db + "-journal";
 
-                File.WriteAllText(db, "x");
+                using (var manager = new DatabaseManager(db, false))
+                    manager.Initialize();
                 File.WriteAllText(wal, "w");
                 File.WriteAllText(shm, "s");
                 File.WriteAllText(journal, "j");

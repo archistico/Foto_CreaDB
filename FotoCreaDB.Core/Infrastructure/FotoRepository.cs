@@ -142,6 +142,15 @@ namespace Foto_CreaDB2
             }
         }
 
+        public int DeleteByIdAndPath(long id, string path)
+        {
+            using SQLiteCommand cmd = _conn.CreateCommand();
+            cmd.CommandText = "DELETE FROM FOTO WHERE ID = @id AND PERCORSO_COMPLETO = @path";
+            cmd.Parameters.AddWithValue("@id", id);
+            cmd.Parameters.AddWithValue("@path", path);
+            return cmd.ExecuteNonQuery();
+        }
+
         public void TouchAsSeenWithoutRehash(string percorsoCompleto, string dataScansione)
         {
             using (SQLiteCommand cmd = _conn.CreateCommand())

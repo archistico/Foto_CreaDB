@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 
 namespace Foto_CreaDB2
 {
@@ -10,7 +11,7 @@ namespace Foto_CreaDB2
     {
         /// <summary>
         /// Cancella il file del database indicato e i file collegati (-wal, -shm, -journal) se presenti.
-        /// Restituisce true se almeno un file è stato cancellato.
+        /// Restituisce true se almeno un file Ã¨ stato cancellato.
         /// I messaggi vengono inviati tramite il callback di log fornito.
         /// </summary>
         public static bool DeleteDatabaseFiles(string databasePath, Action<ServiceLogMessage> log = null)
@@ -25,40 +26,9 @@ namespace Foto_CreaDB2
 
             try
             {
-                string full;
-                try
-                {
-                    full = Path.GetFullPath(databasePath);
-                }
-                catch
-                {
-                    full = databasePath;
-                }
-
-                string[] candidates = new string[]
-                {
-                    full,
-                    full + "-wal",
-                    full + "-shm",
-                    full + "-journal"
-                };
-
-                foreach (string f in candidates)
-                {
-                    try
-                    {
-                        if (File.Exists(f))
-                        {
-                            File.Delete(f);
-                            ServiceCallbackHelper.Info(log, "Database file cancellato: " + f);
-                            deletedAny = true;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        ServiceCallbackHelper.Error(log, "Errore durante la cancellazione del file: " + f, ex);
-                    }
-                }
+                deletedAny = DeleteVerifiedDatabase(databasePath);
+                if (deletedAny)
+                    ServiceCallbackHelper.Info(log, "Database file cancellato: " + Path.GetFullPath(databasePath));
             }
             catch (Exception ex)
             {
@@ -71,6 +41,42 @@ namespace Foto_CreaDB2
             }
 
             return deletedAny;
+        }
+
+        /// <summary>
+        /// Checks the SQLite signature before any deletion and holds exclusive
+        /// handles to the database and sidecars. Refuses active databases and links.
+        /// </summary>
+        internal static bool DeleteVerifiedDatabase(string databasePath)
+        {
+            string full = Path.GetFullPath(databasePath);
+            var files = new List<FileStream>();
+            try
+            {
+                FileStream database;
+                try { database = LockedFile.Open(full, true); }
+                catch (FileNotFoundException) { return false; }
+                files.Add(database);
+                Span<byte> signature = stackalloc byte[16];
+                if (database.ReadAtLeast(signature, signature.Length, false) != signature.Length ||
+                    !signature.SequenceEqual("SQLite format 3\0"u8))
+                    throw new InvalidDataException("Cancellazione rifiutata: il file non ha una firma SQLite valida.");
+
+                foreach (string suffix in new[] { "-wal", "-shm", "-journal" })
+                {
+                    try { files.Add(LockedFile.Open(full + suffix, true)); }
+                    catch (FileNotFoundException) { }
+                }
+                for (int i = files.Count - 1; i >= 0; i--)
+                    LockedFile.Delete(files[i]);
+                return true;
+            }
+            finally
+            {
+                // Keep the database locked until all sidecars are closed/deleted.
+                for (int i = files.Count - 1; i >= 0; i--)
+                    files[i].Dispose();
+            }
         }
     }
 }

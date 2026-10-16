@@ -596,11 +596,34 @@ namespace FotoCreaDB.Wpf.ViewModels
 
         private async Task RunDeleteAsync()
         {
+            // Capture the confirmed database before scheduling background work.
+            string databasePath;
+            try
+            {
+                databasePath = Path.GetFullPath(DatabasePath);
+            }
+            catch (System.Exception ex)
+            {
+                StatusMessage = "Percorso database non valido.";
+                _bridge.OnLog(new ServiceLogMessage
+                {
+                    Timestamp = System.DateTime.Now,
+                    Level = ServiceLogLevel.Error,
+                    Message = StatusMessage,
+                    Exception = ex
+                });
+                return;
+            }
+            bool verboseDuplicates = VerboseDuplicates;
             System.Windows.MessageBoxResult confirm = System.Windows.MessageBox.Show(
-                "Procedo alla cancellazione dei duplicati?",
+                "Eliminare definitivamente tutti i duplicati binari registrati in questo database?\n\n"
+                + databasePath
+                + "\n\nL'operazione comprende tutte le cartelle registrate nel database. "
+                + "Per ogni gruppo viene conservata una copia verificata. I file eliminati non passano dal Cestino.",
                 "Conferma cancellazione",
                 System.Windows.MessageBoxButton.YesNo,
-                System.Windows.MessageBoxImage.Warning);
+                System.Windows.MessageBoxImage.Warning,
+                System.Windows.MessageBoxResult.No);
 
             if (confirm != System.Windows.MessageBoxResult.Yes)
             {
@@ -618,8 +641,8 @@ namespace FotoCreaDB.Wpf.ViewModels
                     _deletionService.Run(
                         new DeletionRequest
                         {
-                            NomeDb = DatabasePath,
-                            VerboseDuplicates = VerboseDuplicates
+                            NomeDb = databasePath,
+                            VerboseDuplicates = verboseDuplicates
                         },
                         _bridge.CreateDeletionProgress(),
                         _bridge.OnLog));

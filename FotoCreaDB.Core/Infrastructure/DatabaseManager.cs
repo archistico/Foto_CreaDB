@@ -68,11 +68,17 @@ namespace Foto_CreaDB2
 
                 if (File.Exists(_nomeDb) && _cancellaDbSeEsiste)
                 {
-                    File.Delete(_nomeDb);
+                    DatabaseFileManager.DeleteVerifiedDatabase(_nomeDb);
                 }
 
-                Connection = new SQLiteConnection(
-                    $"Data Source={_nomeDb};Version=3;Foreign Keys=True;");
+                var connectionString = new SQLiteConnectionStringBuilder
+                {
+                    DataSource = _nomeDb,
+                    Version = 3,
+                    ForeignKeys = true,
+                    Pooling = false
+                };
+                Connection = new SQLiteConnection(connectionString.ConnectionString);
 
                 Connection.Open();
             }

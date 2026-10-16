@@ -1,47 +1,14 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
-using System.Text;
 
 namespace Foto_CreaDB2
 {
-    /// <summary>
-    /// Gestisce la cancellazione fisica dei file candidati all'eliminazione
-    /// dopo l'analisi dei duplicati binari.
-    /// </summary>
+    /// <summary>Deletes verified binary copies while keeping the retained copy locked.</summary>
     public class DuplicateBinaryDeletionService
     {
-        /// <summary>
-        /// Elimina dal disco tutti i file indicati nelle decisioni ricevute e,
-        /// se la cancellazione fisica riesce, rimuove anche il relativo record dal database.
-        /// Inoltre bonifica i record orfani quando il file non è già più presente sul disco.
-        /// </summary>
-        /// <param name="decisions">
-        /// Elenco delle decisioni contenenti i file da eliminare.
-        /// </param>
-        /// <param name="nomeDb">
-        /// Percorso del database SQLite da aggiornare.
-        /// </param>
-        /// <param name="logger">
-        /// Logger usato per scrivere errori e riepilogo operazioni.
-        /// Può essere null se il chiamante gestisce il logging in altro modo.
-        /// </param>
-        /// <param name="deletedDbRecordsCount">
-        /// Restituisce il numero totale di record eliminati dal database.
-        /// </param>
-        /// <param name="orphanDbRecordsDeletedCount">
-        /// Restituisce il numero di record orfani bonificati dal database.
-        /// </param>
-        /// <param name="progress">
-        /// Callback di avanzamento della cancellazione.
-        /// </param>
-        /// <param name="log">
-        /// Callback di log strutturato indipendente dalla console.
-        /// </param>
-        /// <returns>
-        /// Numero totale di file eliminati con successo dal disco.
-        /// </returns>
         public int DeleteFiles(
             List<DuplicateBinaryDecision> decisions,
             string nomeDb,
@@ -53,336 +20,155 @@ namespace Foto_CreaDB2
         {
             deletedDbRecordsCount = 0;
             orphanDbRecordsDeletedCount = 0;
-
-            if (decisions == null || decisions.Count == 0)
+            // Callers/callbacks must not redirect a decision during deletion.
+            var plan = (decisions ?? new()).Where(d => d != null).Select(d => new DuplicateBinaryDecision
             {
-                ServiceCallbackHelper.ReportProgress(
-                    progress,
-                    new DeletionProgress
-                    {
-                        ProcessedFiles = 0,
-                        TotalFiles = 0,
-                        CurrentFile = string.Empty
-                    });
-
-                return 0;
-            }
-
-            int totalFiles = CountFilesToDelete(decisions);
-            int processedFiles = 0;
-            int deletedCount = 0;
-
-            ServiceCallbackHelper.Info(log, "Avvio cancellazione fisica dei file duplicati.");
-
-            using DatabaseManager dbManager = new DatabaseManager(nomeDb, false);
-            dbManager.Initialize();
-
-            using FotoRepository repository = new FotoRepository(dbManager.Connection!);
-
-            ServiceCallbackHelper.ReportProgress(
-                progress,
-                new DeletionProgress
-                {
-                    ProcessedFiles = 0,
-                    TotalFiles = totalFiles,
-                    CurrentFile = string.Empty
-                });
-
-            foreach (DuplicateBinaryDecision decision in decisions)
+                HashSha256 = d.HashSha256,
+                Dimensione = d.Dimensione,
+                FileDaTenere = Copy(d.FileDaTenere),
+                FileDaEliminare = (d.FileDaEliminare ?? new()).Select(Copy).ToList()
+            }).ToList();
+            int total = plan.Sum(d => d.FileDaEliminare.Count);
+            int processed = 0;
+            int deleted = 0;
+            void Report(string path) => ServiceCallbackHelper.ReportProgress(progress, new DeletionProgress
             {
-                if (decision.FileDaEliminare == null || decision.FileDaEliminare.Count == 0)
-                {
-                    continue;
-                }
+                ProcessedFiles = processed, TotalFiles = total, CurrentFile = path
+            });
+            Report(string.Empty);
+            if (total == 0) return 0;
 
-                // Prima di procedere con la cancellazione dei duplicati per questo gruppo,
-                // verifichiamo che il file scelto da tenere esista ancora sul disco
-                // e che non sia stato modificato (size/hash). Se il controllo fallisce,
-                // saltiamo l'intero gruppo.
-                if (decision.FileDaTenere == null || string.IsNullOrWhiteSpace(decision.FileDaTenere.PercorsoCompleto))
-                {
-                    string missingKeep = decision.FileDaTenere?.PercorsoCompleto ?? "<vuoto>";
-                    logger?.WriteLine("FILE DA TENERE NON VALIDATO, SALTO GRUPPO: " + missingKeep);
-                    ServiceCallbackHelper.Warning(log, "FILE DA TENERE NON VALIDATO, salto gruppo duplicati: " + missingKeep);
-
-                    if (decision.FileDaEliminare != null)
-                    {
-                        foreach (DuplicateBinaryCandidate skipped in decision.FileDaEliminare)
-                        {
-                            processedFiles++;
-                            ServiceCallbackHelper.ReportProgress(
-                                progress,
-                                new DeletionProgress
-                                {
-                                    ProcessedFiles = processedFiles,
-                                    TotalFiles = totalFiles,
-                                     CurrentFile = skipped?.PercorsoCompleto ?? string.Empty
-                                });
-                        }
-                    }
-
-                    continue;
-                }
-
-                string keeperPath = decision.FileDaTenere.PercorsoCompleto;
-                if (!File.Exists(keeperPath))
-                {
-                    logger?.WriteLine("FILE DA TENERE NON TROVATO SUL DISCO, SALTO GRUPPO: " + keeperPath);
-                    ServiceCallbackHelper.Warning(log, "FILE DA TENERE NON TROVATO SUL DISCO, salto gruppo duplicati: " + keeperPath);
-
-                    if (decision.FileDaEliminare != null)
-                    {
-                        foreach (DuplicateBinaryCandidate skipped in decision.FileDaEliminare)
-                        {
-                            processedFiles++;
-                            ServiceCallbackHelper.ReportProgress(
-                                progress,
-                                    new DeletionProgress
-                                    {
-                                        ProcessedFiles = processedFiles,
-                                        TotalFiles = totalFiles,
-                                        CurrentFile = skipped?.PercorsoCompleto ?? string.Empty
-                                    });
-                        }
-                    }
-
-                    continue;
-                }
-
-                // Verifica size e hash del keeper (se presenti nei dati di analisi)
+            using var db = new DatabaseManager(nomeDb, false);
+            db.Initialize();
+            using var repository = new FotoRepository(db.Connection!);
+            foreach (var decision in plan)
+            {
+                FileStream keeper;
+                string keepPath = decision.FileDaTenere.PercorsoCompleto;
                 try
                 {
-                    long currentKeeperSize = new FileInfo(keeperPath).Length;
-                    if (decision.FileDaTenere.Dimensione != 0 && decision.FileDaTenere.Dimensione != currentKeeperSize)
-                    {
-                        logger?.WriteLine($"FILE DA TENERE MODIFICATO (dimensione diversa), salto gruppo: {keeperPath}");
-                        ServiceCallbackHelper.Warning(log, "FILE DA TENERE MODIFICATO (dimensione diversa), salto gruppo: " + keeperPath);
-
-                        if (decision.FileDaEliminare != null)
-                        {
-                            foreach (DuplicateBinaryCandidate skipped in decision.FileDaEliminare)
-                            {
-                                processedFiles++;
-                                ServiceCallbackHelper.ReportProgress(
-                                    progress,
-                                    new DeletionProgress
-                                    {
-                                        ProcessedFiles = processedFiles,
-                                        TotalFiles = totalFiles,
-                                        CurrentFile = skipped?.PercorsoCompleto ?? string.Empty
-                                    });
-                            }
-                        }
-
-                        continue;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(decision.FileDaTenere.HashSha256))
-                    {
-                        string currentKeeperHash = ComputeSha256Hex(keeperPath);
-                        if (!string.Equals(currentKeeperHash, decision.FileDaTenere.HashSha256, System.StringComparison.OrdinalIgnoreCase))
-                        {
-                            logger?.WriteLine($"FILE DA TENERE MODIFICATO (hash diverso), salto gruppo: {keeperPath}");
-                            ServiceCallbackHelper.Warning(log, "FILE DA TENERE MODIFICATO (hash diverso), salto gruppo: " + keeperPath);
-
-                            if (decision.FileDaEliminare != null)
-                            {
-                                foreach (DuplicateBinaryCandidate skipped in decision.FileDaEliminare)
-                                {
-                                    processedFiles++;
-                                    ServiceCallbackHelper.ReportProgress(
-                                        progress,
-                                        new DeletionProgress
-                                        {
-                                            ProcessedFiles = processedFiles,
-                                            TotalFiles = totalFiles,
-                                            CurrentFile = skipped?.PercorsoCompleto ?? string.Empty
-                                        });
-                                }
-                            }
-
-                            continue;
-                        }
-                    }
+                    if (!IsValidHash(decision.HashSha256) ||
+                        !string.Equals(decision.HashSha256, decision.FileDaTenere.HashSha256, StringComparison.OrdinalIgnoreCase) ||
+                        decision.Dimensione != decision.FileDaTenere.Dimensione)
+                        throw new IOException("Dati del gruppo incompleti o incoerenti.");
+                    keeper = OpenVerified(decision.FileDaTenere, false);
                 }
-                catch (Exception exKeeper)
+                catch (Exception ex)
                 {
-                    logger?.WriteError($"Errore durante la verifica del file da tenere '{keeperPath}'", exKeeper);
-                    ServiceCallbackHelper.Error(log, $"Errore durante la verifica del file da tenere '{keeperPath}'", exKeeper);
-
-                    if (decision.FileDaEliminare != null)
+                    logger?.WriteError("FILE DA TENERE NON VALIDATO, salto gruppo: " + keepPath, ex);
+                    ServiceCallbackHelper.Warning(log, "FILE DA TENERE NON VALIDATO, salto gruppo: " + keepPath + " - " + ex.Message);
+                    foreach (var skipped in decision.FileDaEliminare)
                     {
-                        foreach (DuplicateBinaryCandidate skipped in decision.FileDaEliminare)
-                        {
-                            processedFiles++;
-                            ServiceCallbackHelper.ReportProgress(
-                                progress,
-                                        new DeletionProgress
-                                        {
-                                            ProcessedFiles = processedFiles,
-                                            TotalFiles = totalFiles,
-                                            CurrentFile = skipped?.PercorsoCompleto ?? string.Empty
-                                        });
-                        }
+                        processed++;
+                        Report(skipped.PercorsoCompleto);
                     }
-
                     continue;
                 }
 
-                foreach (DuplicateBinaryCandidate item in decision.FileDaEliminare)
+                // Keep this lock between candidates, including during callbacks.
+                using (keeper)
                 {
-                    if (item == null || string.IsNullOrWhiteSpace(item.PercorsoCompleto))
+                    foreach (var item in decision.FileDaEliminare)
                     {
-                        continue;
-                    }
-
-                    try
-                    {
-                        if (File.Exists(item.PercorsoCompleto))
+                        try
                         {
-                            // Prima di cancellare il candidato, verifichiamo che non sia stato modificato
-                            long currentItemSize = new FileInfo(item.PercorsoCompleto).Length;
-                            if (item.Dimensione != 0 && item.Dimensione != currentItemSize)
+                            if (!IsValidHash(item.HashSha256) ||
+                                !string.Equals(item.HashSha256, decision.HashSha256, StringComparison.OrdinalIgnoreCase) ||
+                                item.Dimensione != decision.Dimensione ||
+                                string.Equals(Path.GetFullPath(item.PercorsoCompleto), Path.GetFullPath(keepPath), StringComparison.OrdinalIgnoreCase))
+                                throw new IOException("Il candidato non è una copia distinta e coerente con il gruppo.");
+
+                            // Exclusive access also rejects hard links/aliases of the keeper.
+                            using (FileStream candidate = OpenVerified(item, true))
                             {
-                                logger?.WriteLine($"CANDIDATO MODIFICATO (dimensione diversa), salto file: {item.PercorsoCompleto}");
-                                ServiceCallbackHelper.Warning(log, "CANDIDATO MODIFICATO (dimensione diversa), salto file: " + item.PercorsoCompleto);
-                                continue;
+                                if (!HaveSameBytes(keeper, candidate))
+                                    throw new IOException("Contenuti diversi: cancellazione bloccata.");
+                                LockedFile.Delete(candidate);
                             }
-
-                            if (!string.IsNullOrWhiteSpace(item.HashSha256))
-                            {
-                                string currentItemHash = ComputeSha256Hex(item.PercorsoCompleto);
-                                if (!string.Equals(currentItemHash, item.HashSha256, System.StringComparison.OrdinalIgnoreCase))
-                                {
-                                    logger?.WriteLine($"CANDIDATO MODIFICATO (hash diverso), salto file: {item.PercorsoCompleto}");
-                                    ServiceCallbackHelper.Warning(log, "CANDIDATO MODIFICATO (hash diverso), salto file: " + item.PercorsoCompleto);
-                                    continue;
-                                }
-                            }
-
-                            File.Delete(item.PercorsoCompleto);
-                            deletedCount++;
-
+                            deleted++;
+                            deletedDbRecordsCount += RemoveRecord(repository, item, logger, log);
                             logger?.WriteLine("ELIMINATO: " + item.PercorsoCompleto);
                             ServiceCallbackHelper.Info(log, "ELIMINATO: " + item.PercorsoCompleto);
-
-                            try
-                            {
-                                repository.DeleteById(item.Id);
-                                deletedDbRecordsCount++;
-
-                                logger?.WriteLine("RECORD DB ELIMINATO: ID=" + item.Id);
-                                ServiceCallbackHelper.Info(log, "RECORD DB ELIMINATO: ID=" + item.Id);
-                            }
-                            catch (Exception exDb)
-                            {
-                                logger?.WriteError($"Errore durante la cancellazione del record DB ID={item.Id}", exDb);
-                                ServiceCallbackHelper.Error(log, $"Errore durante la cancellazione del record DB ID={item.Id}", exDb);
-                            }
                         }
-                        else
+                        catch (FileNotFoundException)
                         {
-                            logger?.WriteLine("NON TROVATO SU DISCO: " + item.PercorsoCompleto);
+                            int removed = RemoveRecord(repository, item, logger, log);
+                            deletedDbRecordsCount += removed;
+                            orphanDbRecordsDeletedCount += removed;
                             ServiceCallbackHelper.Warning(log, "NON TROVATO SU DISCO: " + item.PercorsoCompleto);
-
-                            try
-                            {
-                                repository.DeleteById(item.Id);
-                                deletedDbRecordsCount++;
-                                orphanDbRecordsDeletedCount++;
-
-                                logger?.WriteLine("RECORD ORFANO BONIFICATO DAL DB: ID=" + item.Id);
-                                ServiceCallbackHelper.Info(log, "RECORD ORFANO BONIFICATO DAL DB: ID=" + item.Id);
-                            }
-                            catch (Exception exDb)
-                            {
-                                logger?.WriteError($"Errore durante la bonifica del record orfano ID={item.Id}", exDb);
-                                ServiceCallbackHelper.Error(log, $"Errore durante la bonifica del record orfano ID={item.Id}", exDb);
-                            }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger?.WriteError($"Errore durante la cancellazione del file '{item.PercorsoCompleto}'", ex);
-                        ServiceCallbackHelper.Error(log, $"Errore durante la cancellazione del file '{item.PercorsoCompleto}'", ex);
-                    }
-                    finally
-                    {
-                        processedFiles++;
-
-                        ServiceCallbackHelper.ReportProgress(
-                            progress,
-                            new DeletionProgress
-                            {
-                                ProcessedFiles = processedFiles,
-                                TotalFiles = totalFiles,
-                                CurrentFile = item.PercorsoCompleto
-                            });
+                        catch (Exception ex)
+                        {
+                            logger?.WriteError("Cancellazione bloccata: " + item.PercorsoCompleto, ex);
+                            ServiceCallbackHelper.Warning(log, "Cancellazione bloccata: " + item.PercorsoCompleto + " - " + ex.Message);
+                        }
+                        finally
+                        {
+                            processed++;
+                            Report(item.PercorsoCompleto);
+                        }
                     }
                 }
             }
-
-            logger?.WriteLine("");
-            logger?.WriteLine("File eliminati con successo        : " + deletedCount);
-            logger?.WriteLine("Record DB eliminati con successo   : " + deletedDbRecordsCount);
-            logger?.WriteLine("Record orfani bonificati dal DB    : " + orphanDbRecordsDeletedCount);
-
-            ServiceCallbackHelper.Info(log, "File eliminati con successo: " + deletedCount);
+            ServiceCallbackHelper.Info(log, "File eliminati con successo: " + deleted);
             ServiceCallbackHelper.Info(log, "Record DB eliminati con successo: " + deletedDbRecordsCount);
             ServiceCallbackHelper.Info(log, "Record orfani bonificati dal DB: " + orphanDbRecordsDeletedCount);
-
-            return deletedCount;
+            return deleted;
         }
 
-        /// <summary>
-        /// Conta il numero totale di file candidati alla cancellazione
-        /// presenti nell'elenco delle decisioni.
-        /// </summary>
-        /// <param name="decisions">
-        /// Elenco delle decisioni di deduplicazione.
-        /// </param>
-        /// <returns>
-        /// Numero totale dei file da eliminare.
-        /// </returns>
-        private int CountFilesToDelete(List<DuplicateBinaryDecision> decisions)
+        private static DuplicateBinaryCandidate Copy(DuplicateBinaryCandidate? item) => new()
         {
-            if (decisions == null || decisions.Count == 0)
+            Id = item?.Id ?? 0, PercorsoCompleto = item?.PercorsoCompleto ?? "",
+            HashSha256 = item?.HashSha256 ?? "", Dimensione = item?.Dimensione ?? -1
+        };
+
+        private static int RemoveRecord(FotoRepository repository, DuplicateBinaryCandidate item,
+            Logger? logger, Action<ServiceLogMessage>? log)
+        {
+            try { return repository.DeleteByIdAndPath(item.Id, item.PercorsoCompleto); }
+            catch (Exception ex)
             {
+                logger?.WriteError("Errore durante la cancellazione del record DB ID=" + item.Id, ex);
+                ServiceCallbackHelper.Error(log, "Errore durante la cancellazione del record DB ID=" + item.Id, ex);
                 return 0;
             }
-
-            int total = 0;
-
-            foreach (DuplicateBinaryDecision decision in decisions)
-            {
-                if (decision.FileDaEliminare != null)
-                {
-                    total += decision.FileDaEliminare.Count;
-                }
-            }
-
-            return total;
         }
 
-        private static string ComputeSha256Hex(string filename)
+        private static bool IsValidHash(string hash) =>
+            hash != null && hash.Length == 64 && hash.All(Uri.IsHexDigit);
+
+        private static FileStream OpenVerified(DuplicateBinaryCandidate item, bool forDeletion)
         {
-            if (string.IsNullOrWhiteSpace(filename) || !File.Exists(filename))
+            if (!IsValidHash(item.HashSha256) || item.Dimensione < 0)
+                throw new IOException("Hash o dimensione mancanti/non validi.");
+            FileStream file = LockedFile.Open(item.PercorsoCompleto, forDeletion);
+            try
             {
-                return string.Empty;
+                if (file.Length != item.Dimensione ||
+                    !string.Equals(Convert.ToHexString(SHA256.HashData(file)), item.HashSha256, StringComparison.OrdinalIgnoreCase))
+                    throw new IOException("File modificato dopo l'analisi.");
+                return file;
             }
-
-            using (FileStream stream = File.OpenRead(filename))
-            using (SHA256 sha = SHA256.Create())
+            catch
             {
-                byte[] hash = sha.ComputeHash(stream);
-                StringBuilder sb = new StringBuilder(hash.Length * 2);
-                foreach (byte b in hash)
-                {
-                    sb.Append(b.ToString("x2"));
-                }
-
-                return sb.ToString();
+                file.Dispose();
+                throw;
             }
+        }
+
+        private static bool HaveSameBytes(FileStream keeper, FileStream candidate)
+        {
+            if (keeper.Length != candidate.Length) return false;
+            keeper.Position = candidate.Position = 0;
+            byte[] left = new byte[81920];
+            byte[] right = new byte[left.Length];
+            int count;
+            while ((count = keeper.Read(left)) > 0)
+            {
+                candidate.ReadExactly(right.AsSpan(0, count));
+                if (!left.AsSpan(0, count).SequenceEqual(right.AsSpan(0, count))) return false;
+            }
+            return candidate.ReadByte() == -1;
         }
     }
 }
