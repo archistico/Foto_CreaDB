@@ -2,15 +2,27 @@
 using FotoCreaDB.Wpf.ViewModels;
 using System;
 using System.Collections.ObjectModel;
-using System.Windows;
 using System.Windows.Threading;
 
 namespace FotoCreaDB.Wpf.Adapters
 {
-    public class WpfServiceBridge
+    public class WpfServiceBridge : IDisposable
     {
+        private readonly Dispatcher _dispatcher;
+        private readonly DispatcherTimer _progressTimer;
+        private CoalescingProgress<AnalysisProgress> _analysisProgress = new();
+        private CoalescingProgress<DuplicateReportProgress> _reportProgress = new();
+        private CoalescingProgress<DeletionProgress> _deletionProgress = new();
+        private volatile bool _disposed;
+
         public WpfServiceBridge()
         {
+            _dispatcher = Dispatcher.CurrentDispatcher;
+            _progressTimer = new DispatcherTimer(DispatcherPriority.Background, _dispatcher)
+            {
+                Interval = TimeSpan.FromMilliseconds(250)
+            };
+            _progressTimer.Tick += DrainProgress;
             AnalysisState = new ProgressStateViewModel();
             ReportState = new ProgressStateViewModel();
             DeletionState = new ProgressStateViewModel();
@@ -37,17 +49,38 @@ namespace FotoCreaDB.Wpf.Adapters
 
         public void ResetAnalysis()
         {
-            RunOnUiThread(() => AnalysisState.Reset("Analisi"));
+            RunOnUiThread(() =>
+            {
+                _analysisProgress.Complete();
+                _analysisProgress = new();
+                AnalysisState.Reset("Analisi");
+                AnalysisState.IsRunning = true;
+                _progressTimer.Start();
+            });
         }
 
         public void ResetReport()
         {
-            RunOnUiThread(() => ReportState.Reset("Report"));
+            RunOnUiThread(() =>
+            {
+                _reportProgress.Complete();
+                _reportProgress = new();
+                ReportState.Reset("Report");
+                ReportState.IsRunning = true;
+                _progressTimer.Start();
+            });
         }
 
         public void ResetDeletion()
         {
-            RunOnUiThread(() => DeletionState.Reset("Cancellazione"));
+            RunOnUiThread(() =>
+            {
+                _deletionProgress.Complete();
+                _deletionProgress = new();
+                DeletionState.Reset("Cancellazione");
+                DeletionState.IsRunning = true;
+                _progressTimer.Start();
+            });
         }
 
         public void OnLog(ServiceLogMessage? message)
@@ -71,89 +104,116 @@ namespace FotoCreaDB.Wpf.Adapters
 
         public void OnAnalysisProgress(AnalysisProgress? progress)
         {
-            if (progress == null)
-            {
-                return;
-            }
-
-            RunOnUiThread(() =>
-            {
-                AnalysisState.IsRunning = progress.ProcessedFiles < progress.TotalFiles || progress.TotalFiles == 0;
-                AnalysisState.ProcessedItems = progress.ProcessedFiles;
-                AnalysisState.TotalItems = progress.TotalFiles;
-                AnalysisState.Percentage = progress.Percentage;
-                AnalysisState.CurrentItem = progress.CurrentFile ?? string.Empty;
-                AnalysisState.CurrentStep = "Analisi file";
-            });
+            if (progress != null) _analysisProgress.Report(progress);
         }
 
         public void OnReportProgress(DuplicateReportProgress? progress)
         {
-            if (progress == null)
-            {
-                return;
-            }
-
-            RunOnUiThread(() =>
-            {
-                ReportState.IsRunning = progress.ProcessedGroups < progress.TotalGroups || progress.TotalGroups == 0;
-                ReportState.ProcessedItems = progress.ProcessedGroups;
-                ReportState.TotalItems = progress.TotalGroups;
-                ReportState.Percentage = progress.Percentage;
-                ReportState.CurrentItem = string.Empty;
-                ReportState.CurrentStep = progress.CurrentStep ?? string.Empty;
-            });
+            if (progress != null) _reportProgress.Report(progress);
         }
 
         public void OnDeletionProgress(DeletionProgress? progress)
         {
-            if (progress == null)
-            {
-                return;
-            }
-
-            RunOnUiThread(() =>
-            {
-                DeletionState.IsRunning = progress.ProcessedFiles < progress.TotalFiles || progress.TotalFiles == 0;
-                DeletionState.ProcessedItems = progress.ProcessedFiles;
-                DeletionState.TotalItems = progress.TotalFiles;
-                DeletionState.Percentage = progress.Percentage;
-                DeletionState.CurrentItem = progress.CurrentFile ?? string.Empty;
-                DeletionState.CurrentStep = "Cancellazione file";
-            });
+            if (progress != null) _deletionProgress.Report(progress);
         }
 
         public IProgress<AnalysisProgress> CreateAnalysisProgress()
         {
-            return new Progress<AnalysisProgress>(OnAnalysisProgress);
+            return _analysisProgress;
         }
 
         public IProgress<DuplicateReportProgress> CreateReportProgress()
         {
-            return new Progress<DuplicateReportProgress>(OnReportProgress);
+            return _reportProgress;
         }
 
         public IProgress<DeletionProgress> CreateDeletionProgress()
         {
-            return new Progress<DeletionProgress>(OnDeletionProgress);
+            return _deletionProgress;
         }
 
-        private static void RunOnUiThread(Action action)
+        public void CompleteAnalysis() => RunOnUiThread(() =>
         {
-            if (action == null)
+            ApplyAnalysis(_analysisProgress.Complete());
+            AnalysisState.IsRunning = false;
+            StopTimerIfIdle();
+        });
+
+        public void CompleteReport() => RunOnUiThread(() =>
+        {
+            ApplyReport(_reportProgress.Complete());
+            ReportState.IsRunning = false;
+            StopTimerIfIdle();
+        });
+
+        public void CompleteDeletion() => RunOnUiThread(() =>
+        {
+            ApplyDeletion(_deletionProgress.Complete());
+            DeletionState.IsRunning = false;
+            StopTimerIfIdle();
+        });
+
+        private void DrainProgress(object? sender, EventArgs e)
+        {
+            ApplyAnalysis(_analysisProgress.TakeLatest());
+            ApplyReport(_reportProgress.TakeLatest());
+            ApplyDeletion(_deletionProgress.TakeLatest());
+        }
+
+        private void ApplyAnalysis(AnalysisProgress? progress)
+        {
+            if (progress == null) return;
+            AnalysisState.ProcessedItems = progress.ProcessedFiles;
+            AnalysisState.TotalItems = progress.TotalFiles;
+            AnalysisState.Percentage = progress.Percentage;
+            AnalysisState.CurrentItem = progress.CurrentFile ?? string.Empty;
+            AnalysisState.CurrentStep = "Analisi file";
+        }
+
+        private void ApplyReport(DuplicateReportProgress? progress)
+        {
+            if (progress == null) return;
+            ReportState.ProcessedItems = progress.ProcessedGroups;
+            ReportState.TotalItems = progress.TotalGroups;
+            ReportState.Percentage = progress.Percentage;
+            ReportState.CurrentItem = string.Empty;
+            ReportState.CurrentStep = progress.CurrentStep;
+        }
+
+        private void ApplyDeletion(DeletionProgress? progress)
+        {
+            if (progress == null) return;
+            DeletionState.ProcessedItems = progress.ProcessedFiles;
+            DeletionState.TotalItems = progress.TotalFiles;
+            DeletionState.Percentage = progress.Percentage;
+            DeletionState.CurrentItem = progress.CurrentFile ?? string.Empty;
+            DeletionState.CurrentStep = "Cancellazione file";
+        }
+
+        private void StopTimerIfIdle()
+        {
+            if (!AnalysisState.IsRunning && !ReportState.IsRunning && !DeletionState.IsRunning)
+                _progressTimer.Stop();
+        }
+
+        public void Dispose()
+        {
+            RunOnUiThread(() =>
             {
-                return;
-            }
+                _disposed = true;
+                _progressTimer.Stop();
+                _progressTimer.Tick -= DrainProgress;
+                _analysisProgress.Complete();
+                _reportProgress.Complete();
+                _deletionProgress.Complete();
+            });
+        }
 
-            DispatcherObject? dispatcherObject = System.Windows.Application.Current;
-
-            if (dispatcherObject == null || dispatcherObject.Dispatcher.CheckAccess())
-            {
-                action();
-                return;
-            }
-
-            dispatcherObject.Dispatcher.Invoke(action);
+        private void RunOnUiThread(Action action)
+        {
+            if (_disposed) return;
+            if (_dispatcher.CheckAccess()) action();
+            else _dispatcher.Invoke(() => { if (!_disposed) action(); });
         }
     }
 }

@@ -10,5 +10,11 @@ namespace FotoCreaDB.Wpf
             InitializeComponent();
             DataContext = new MainViewModel();
         }
+
+        protected override void OnClosed(System.EventArgs e)
+        {
+            if (DataContext is System.IDisposable disposable) disposable.Dispose();
+            base.OnClosed(e);
+        }
     }
 }

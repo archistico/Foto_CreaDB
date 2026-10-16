@@ -10,7 +10,7 @@ using System.Windows.Input;
 
 namespace FotoCreaDB.Wpf.ViewModels
 {
-    public class MainViewModel : ViewModelBase
+    public class MainViewModel : ViewModelBase, System.IDisposable
     {
         private readonly AnalysisService _analysisService;
         private readonly DuplicateReportService _reportService;
@@ -524,7 +524,6 @@ namespace FotoCreaDB.Wpf.ViewModels
                         _bridge.OnLog));
 
                 StatusMessage = result.Message;
-                AnalysisState.IsRunning = false;
 
                 // salva preferenze (cartella foto e database) su appsettings.json
                 SavePreferences();
@@ -539,10 +538,10 @@ namespace FotoCreaDB.Wpf.ViewModels
                     Message = "Errore durante l'analisi.",
                     Exception = ex
                 });
-                AnalysisState.IsRunning = false;
             }
             finally
             {
+                _bridge.CompleteAnalysis();
                 IsBusy = false;
             }
         }
@@ -571,7 +570,6 @@ namespace FotoCreaDB.Wpf.ViewModels
                 LastFilesToDeleteSizeFormatted = FormatBytes(result.FilesToDeleteSize);
 
                 StatusMessage = "Report completato.";
-                ReportState.IsRunning = false;
 
                 // salva preferenze
                 SavePreferences();
@@ -586,10 +584,10 @@ namespace FotoCreaDB.Wpf.ViewModels
                     Message = "Errore durante il report.",
                     Exception = ex
                 });
-                ReportState.IsRunning = false;
             }
             finally
             {
+                _bridge.CompleteReport();
                 IsBusy = false;
             }
         }
@@ -648,7 +646,6 @@ namespace FotoCreaDB.Wpf.ViewModels
                         _bridge.OnLog));
 
                 StatusMessage = result.Message;
-                DeletionState.IsRunning = false;
 
                 // salva preferenze
                 SavePreferences();
@@ -663,12 +660,14 @@ namespace FotoCreaDB.Wpf.ViewModels
                     Message = "Errore durante la cancellazione.",
                     Exception = ex
                 });
-                DeletionState.IsRunning = false;
             }
             finally
             {
+                _bridge.CompleteDeletion();
                 IsBusy = false;
             }
         }
+
+        public void Dispose() => _bridge.Dispose();
     }
 }
